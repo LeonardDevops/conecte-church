@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "509734766303",
+    "project_id": "igrejameta-80236",
+    "storage_bucket": "igrejameta-80236.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:509734766303:android:96efe8de1918d7749f4b6a",
+        "android_client_info": {
+          "package_name": "igreja.meta.com"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAqRyBJA_iQPg1sIpipSdw_I0ArHtCXVzI"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
