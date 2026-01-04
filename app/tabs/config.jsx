@@ -36,7 +36,7 @@ export default function Config() {
   const [cart, setCart] = useState(false); 
   const [loading, setLoading] = useState();
 
-  const { setUserContext } = useContext(AppContext);
+  const { setUserContext , userContext} = useContext(AppContext);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -68,6 +68,8 @@ export default function Config() {
     fetchData();
   }, []);
 
+  console.log(userId, ' ID do usuario no config');
+
   // funcao para escolher a imagem da galeria e fazer upload para o firebase storage
 
   const pickImage = async () => {
@@ -92,25 +94,27 @@ export default function Config() {
     Alert.alert('Sucesso', 'Imagem de perfil atualizada com sucesso!');
     setImage(result.assets[0].uri);
     setUserId(true);
+    setImg(true);
   };
 
 // funcao para carregar a imagem do firebase storage
   useEffect(() => {
-    const loadImage = async () => {
+    async function fetchImage() {
       const storage = getStorage();
       const storageRef = ref(storage, `perfilUsers/image:${userId}`);
 
       try {
         const url = await getDownloadURL(storageRef);
         setImage(url);
+        setImg(true);
         setImgID(true);
-
+        
       } catch (error) {
         console.log('Nenhuma imagem de perfil encontrada.');
       }
     };
-
-    if (userId !== false) loadImage();
+     if(userId) fetchImage();
+    
   }, [userId]);
 
 
