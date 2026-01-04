@@ -6,8 +6,8 @@ import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { useRouter } from "expo-router";
 import { useContext } from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
-import { AppContext } from "../Data/contextApi";
-import { clearAll } from "../Data/storage";
+import { AppContext } from "../../src/Data/contextApi";
+import { clearAll } from "../../src/Data/storage";
 export default function Menu() {
 
   const router = useRouter();
@@ -23,9 +23,19 @@ export default function Menu() {
     router.push('/Card');
   }
 
+  function goRedes(params) {
+    router.push('/redes');
+  }
+
+  function goEventos(params) {
+    router.push('/eventos');
+  }
+
   return (
         <View style={styles.container}>
-          <TouchableOpacity style={styles.button}>
+          <TouchableOpacity 
+           onPress={goRedes}
+          style={styles.button}>
             <Entypo name="instagram" size={24} color="#df493eff" />
             <FontAwesome name="whatsapp" size={28} color="#05c76cff" />
             <Text style={styles.text}>Redes Sociais</Text> 
@@ -48,7 +58,9 @@ export default function Menu() {
           <Text style={styles.text}>Palavra do Dia</Text>
           </TouchableOpacity>
           
-          <TouchableOpacity style={styles.button}>
+          <TouchableOpacity
+          onPress={goEventos}
+          style={styles.button}>
             <MaterialIcons name="event" size={24} color="#2188e9ec" />
            <Text style={styles.text}>Eventos</Text>
           </TouchableOpacity>

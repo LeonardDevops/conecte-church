@@ -1,64 +1,85 @@
 import { Stack } from "expo-router";
 import React from "react";
-import { AppProvider } from "./Data/contextApi";
+import { Providers } from "../src/Data/proviedrs";
 export default function RootLayout() {
   return (
-    <AppProvider>
-        
+    
+    <Providers>
 
-        <React.Fragment>          
-          <Stack>
-            <Stack.Screen
-              name="index"
-              options={{
-                headerShown: true,
-                statusBarStyle: "light",
-                headerStyle: { backgroundColor: "#000000ff" },
-                headerTintColor: "#fff",
-                headerTitleStyle: { fontWeight: "bold" },
-                title: "",
-              }}
-              
-              />
-            <Stack.Screen
-              name="Card"
-              options={{
-                headerTitle:'Carteirinha',
-                headerShown: true,
-                statusBarStyle: "light",
-                headerStyle: { backgroundColor: "#000000ff" },
-                headerTintColor: "#fff",
-                headerTitleStyle: { fontWeight: "bold" },
-                title: "",
-              }}
-            />,
-            <Stack.Screen
-              name="Cadastro"
-              options={{
-                headerTitle:'Cadastro',
-                headerShown: true,
-                statusBarStyle: "light",
-                headerStyle: { backgroundColor: "#000000ff" },
-                headerTintColor: "#fff",
-                headerTitleStyle: { fontWeight: "bold" },
-                title: "",
-              }}
-              
-              />
-            <Stack.Screen
-              name="tabs"
-              options={{
-                headerShown: false,
-              }}
-              />
-          </Stack>
-        </React.Fragment>
-              </AppProvider>
+      <Stack>
+        <Stack.Screen
+          name="index"
+          options={{
+            headerShown: true,
+            statusBarStyle: "light",
+            headerStyle: { backgroundColor: "#000000ff" }, // removido flex:1
+            headerTintColor: "#fff",
+            headerTitleStyle: { fontWeight: "bold" },
+            title: "",
+          }}
+        />
+
+        <Stack.Screen
+          name="Card"
+          options={{
+            headerTitle: "Carteirinha",
+            headerShown: true,
+            statusBarStyle: "light",
+            headerStyle: { backgroundColor: "#000000ff" },
+            headerTintColor: "#fff",
+            headerTitleStyle: { fontWeight: "bold" },
+            title: "",
+          }}
+        />
+
+        <Stack.Screen
+          name="Cadastro"
+          options={{
+            headerTitle: "Cadastro",
+            headerShown: true,
+            statusBarStyle: "light",
+            headerStyle: { backgroundColor: "#000000ff" },
+            headerTintColor: "#fff",
+            headerTitleStyle: { fontWeight: "bold" },
+            title: "",
+          }}
+          />
+
+        <Stack.Screen
+          name="redes"
+          options={{
+            headerTitle: "Redes Sociais",
+            headerShown: true,
+            statusBarStyle: "light",
+            headerStyle: { backgroundColor: "#000000ff" },
+            headerTintColor: "#fff",
+            headerTitleStyle: { fontWeight: "bold" },
+            title: "",
+          }}
+          />
+
+        <Stack.Screen
+          name="eventos"
+          options={{
+            headerTitle: "Eventos",
+            headerShown: true,
+            statusBarStyle: "light",
+            headerStyle: { backgroundColor: "#000000ff" },
+            headerTintColor: "#fff",
+            headerTitleStyle: { fontWeight: "bold" },
+            title: "",
+          }}
+          />
+
+        <Stack.Screen
+          name="tabs"
+          options={{
+            headerShown: false,
+          }}
+          />
+      </Stack>
+          
+          </Providers>
+   
   );
 }
-
-
-
-
-
-

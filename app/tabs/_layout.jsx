@@ -1,185 +1,181 @@
-import Entypo from '@expo/vector-icons/Entypo';
-import FontAwesome from '@expo/vector-icons/FontAwesome';
-import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { Tabs } from "expo-router";
-import { Pressable, View } from 'react-native';
-export default function RootLayout() {
-  return (
-                 
-          <Tabs screenOptions={{tabBarStyle:{backgroundColor:'#000', height:100, position:'absolute', 
-            
-           }, 
-          tabBarItemStyle:{
-            height:48,
-            width:48,
-            margin:'auto',
-            alignItems:'center',
-            justifyContent:'center',
-            
-          
-          },
-        
-          tabBarButton: (props) => {
-            const focused = props.accessibilityState;
-            console.log('tab button accessibilityState', props.accessibilityState?.selected); // debug
+import { useEffect, useRef } from "react";
+import { Animated, Dimensions, PixelRatio, Pressable } from "react-native";
 
-            return (
-            <Pressable
-              {...props}
-              style={({ }) => [
-                {
-                  backgroundColor: focused ? '#ffffff2c' : 'transparent',
-                  width: 50,
-                  height: 50,
-                  borderRadius: 60 / 2, // garante que é um círculo perfeito
-                  justifyContent: 'center',
-                  alignItems: 'center',
-                  
-                },
-              ]}
-            >
-              {props.children}
-            </Pressable>
-          );
+
+import Entypo from "@expo/vector-icons/Entypo";
+import FontAwesome from "@expo/vector-icons/FontAwesome";
+import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
+
+const { width, height } = Dimensions.get("window");
+
+// 📌 Função de fonte responsiva
+const scaleFont = (size) => {
+  const scale = width / 375;
+  const newSize = size * scale;
+  return Math.round(PixelRatio.roundToNearestPixel(newSize));
+};
+
+// 🟦 Medidas responsivas
+const TAB_BUTTON_SIZE = Math.max(width * 0.12, 50);
+const ICON_SIZE = Math.min(width * 0.075, 32);
+const HEADER_FONT = scaleFont(18);
+const HEADER_HEIGHT = Math.max(height * 0.10, 60);
+
+
+
+export default function Layout() {
+
+  return (
+
+    <Tabs
+      screenOptions={{
+        headerShown: true,
+        headerStyle: {
+          backgroundColor: "#000",
+          height: HEADER_HEIGHT,
         },
+        headerTitleAlign: "center",
+        headerTintColor: "#fff",
+        headerTitleStyle: {
+          fontSize: HEADER_FONT,
+        },
+
+        // ❗ Desativa o label nativo (para usar apenas nosso custom)
+        tabBarActiveTintColor: "#fff",
+        tabBarInactiveTintColor: "#9c9c9c",
+       
+        tabBarStyle: {
+          position: "absolute",
+          height: height * 0.11,
+          backgroundColor: "#000",
+          borderTopWidth: 0,
+          elevation: 10,
+        },
+
+        // 🔥 Usa nosso botão customizado
+        tabBarButton: (props) => (
+          <CustomTabBarButton
+            {...props}
+            accessibilityLabel={props.accessibilityLabel}
+          
+          />
+        ),
       }}
     >
-            <Tabs.Screen name="menu" 
-              options={{
-                title:'Menu', headerTitleStyle:{ color:'#fff', fontSize:23, fontWeight:'bold' },
-                headerBackground: () => (
-                  <View style={{ backgroundColor: "#000000ff", height: 78}} />
-                ),
-                tabBarIcon:({focused})=> (
+      <Tabs.Screen
+        name="menu"
+        options={{
+          title: "Menu",
+          tabBarIcon: ({ color }) => (
+            <Entypo name="menu" size={ICON_SIZE} color={color} />
+          ),
+        }}
+      />
 
-                  <View style={{
-                  backgroundColor: focused ? '#ffffff2c' : 'transparent',
-                  width: 50,
-                  height: 50,
-                  borderRadius: 60 / 2, // garante que é um círculo perfeito
-                  justifyContent: 'center',
-                  alignItems: 'center',
-                  transform:[{scale:focused ? 1.2 : 0.9}]
-
-                  }}>
-                    <MaterialCommunityIcons name="menu"  size={25} color="#fff" />
-                  </View>
-
-                )
-              
-              }}
+      <Tabs.Screen
+        name="ofertas"
+        options={{
+          title: "Ofertas",
+          tabBarIcon: ({ color }) => (
+            <MaterialCommunityIcons
+              name="qrcode-scan"
+              size={ICON_SIZE}
+              color={color}
             />
-            <Tabs.Screen name="ofertas" 
-            
-              options={{
-                headerBackground: () => (
-                  <View style={{ backgroundColor: "#000000ff", height: 78}} />
-                ),
-                title:'Ofertas', headerTitleStyle:{ color:'#fff', fontSize:23, fontWeight:'bold' },
-              tabBarIcon:({focused})=> (
+          ),
+        }}
+      />
 
-                  <View style={{
-                  backgroundColor: focused ? '#ffffff2c' : 'transparent',
-                  width: 50,
-                  height: 50,
-                  borderRadius: 60 / 2, // garante que é um círculo perfeito
-                  justifyContent: 'center',
-                  alignItems: 'center',
-                  transform:[{scale:focused ? 1.2 : 0.9}]
-                  
+      <Tabs.Screen
+        name="home"
+        options={{
+          title: "Início",
+          tabBarIcon: ({ color }) => (
+            <Entypo name="home" size={ICON_SIZE} color={color} />
+          ),
+        }}
+      />
 
-                  }}>
-                    <MaterialCommunityIcons name="qrcode-scan"  size={25} color="#fff" />
-                  </View>
+      <Tabs.Screen
+        name="work"
+        options={{
+          title: "Tarefas",
+          tabBarIcon: ({ color }) => (
+            <FontAwesome name="table" size={ICON_SIZE} color={color} />
+          ),
+        }}
+      />
 
-                )
-              }}
-            />
-            <Tabs.Screen  name="home" 
-              options={{
-                headerBackground: () => (
-                  <View style={{ backgroundColor: "#000000ff", height: 78}} />
-                ),
-
-                title:'Home ', headerTitleStyle:{ color:'#fff', fontSize:23, fontWeight:'bold' },
-
-                tabBarIcon:({focused})=> (
-
-                  <View style={{
-                  backgroundColor: focused ? '#ffffff2c' : 'transparent',
-                  width: 50,
-                  height: 50,
-                  borderRadius: 60 / 2, // garante que é um círculo perfeito
-                  justifyContent: 'center',
-                  alignItems: 'center',
-                  transform:[{scale:focused ? 1.2 : 0.9}]
-
-                  }}>
-                    <Entypo name="home" size={25} color="#fff" />
-                  </View>
-
-                )
-                
-              }}
-            />
-            <Tabs.Screen name="work" 
-              options={{
-                title:'Tarefas', headerTitleStyle:{ color:'#fff', fontSize:23, fontWeight:'bold' },
-                headerBackground: () => (
-                  <View style={{ backgroundColor: "#000000ff", height: 78}} />
-                ),
-                tabBarIcon:({focused})=> (
-
-                  <View style={{
-                  backgroundColor: focused ? '#ffffff2c' : 'transparent',
-                  width: 50,
-                  height: 50,
-                  borderRadius: 60 / 2, // garante que é um círculo perfeito
-                  justifyContent: 'center',
-                  alignItems: 'center',
-                  transform:[{scale:focused ? 1.2 : 0.9}]
-
-                  }}>
-                    <FontAwesome name="table" size={24} color="#fff" />
-                  </View>
-
-                )
-                
-              }}
-            />
-            <Tabs.Screen name="config" 
-              options={{
-                headerBackground: () => (
-                  <View style={{ backgroundColor: "#000000ff", height: 78}} />
-                ),
-                title:'Perfil', headerTitleStyle:{ color:'#fff', fontSize:23, fontWeight:'bold' },
-               
-                tabBarIcon:({focused})=> (
-
-                  <View style={{
-                  backgroundColor: focused ? '#ffffff2c' : 'transparent',
-                  width: 51,
-                  height: 52,
-                  borderRadius: 60 / 2, // garante que é um círculo perfeito
-                  justifyContent: 'center',
-                  alignItems: 'center',
-                  transform:[{scale:focused ? 1.2 : 0.9 }],
-                  shadowOpacity:'#fff'
-                  
-                  
-    
-
-                  }}>
-                   <FontAwesome name="user-circle" size={26} color="#fff" />
-                  </View>
-
-                )
-              }}
-            />
-          </Tabs>
-       
+      <Tabs.Screen
+        name="config"
+        options={{
+          title: "Profile",
+          tabBarIcon: ({ color }) => (
+            <FontAwesome name="user-circle" size={ICON_SIZE} color={color} />
+          ),
+        }}
+      />
+    </Tabs>
+ 
   );
 }
 
+function CustomTabBarButton({
+  children,
+  accessibilityState,
+  onPress,
+  accessibilityLabel,
+}) {
+  const focused = accessibilityState?.selected ?? false;
+  const scale = useRef(new Animated.Value(focused ? 1.2 : 1)).current;
 
+  useEffect(() => {
+    Animated.spring(scale, {
+      toValue: focused ? 1.2 : 1,
+      friction: 6,
+      useNativeDriver: true,
+    }).start();
+  }, [focused]);
 
+  return (
+    <Pressable
+      onPress={onPress}
+      style={{
+        flex: 1,
+        alignItems: "center",
+        justifyContent: "center",
+      }}
+    >
+      <Animated.View
+        style={{
+          alignItems: "center",
+          justifyContent: "center",
+          transform: [{ scale }],
+        }}
+      >
+        {/* Ícone */}
+        {children}
+
+        {/* Label custom */}
+        <Animated.Text
+          style={{
+            marginTop: 4,
+            paddingHorizontal: 10,
+            paddingVertical: 2,
+            borderRadius: 8,
+
+            // 🔥 Cor e fundo de acordo com o foco
+            color: focused ? "#fff" : "#9c9c9c",
+            backgroundColor: focused ? "#c92626ff" : "transparents",
+            // 📐 Estilo responsivo
+            fontSize: scaleFont(12),
+            fontWeight: "bold",
+          }}
+        >
+          {accessibilityLabel}
+        </Animated.Text>
+      </Animated.View>
+    </Pressable>
+  );
+}

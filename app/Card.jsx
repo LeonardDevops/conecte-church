@@ -1,6 +1,6 @@
 import { useContext } from "react";
 import { Image, StyleSheet, Text, View } from 'react-native';
-import { AppContext } from "./Data/contextApi";
+import { AppContext } from "../src/Data/contextApi";
 
 
 
@@ -8,7 +8,7 @@ export default function Card(params) {
 
 
     const { userContext } = useContext(AppContext) 
-
+    const { name:name } = userContext.churchesPr;
 
     return (
         <View style={styles.content}>
@@ -16,19 +16,19 @@ export default function Card(params) {
             <View style={styles.container}>
 
                 <View style={styles.nome}>
-                    <Text style={styles.title}>Nome: {userContext.nome}</Text>
+                    <Text style={styles.title}>Nome: {userContext.name}</Text>
                 </View>
-                <Text style={styles.title}></Text>
-                <Text style={styles.title}>Data Nascimento: {userContext.dataNascimento}</Text>
+                <Text style={styles.title}>Data Nascimento: {userContext.nascimento}</Text>
+                <Text style={styles.title}>Phone: {userContext.phone}</Text>
                 <Text style={styles.title}></Text>
                 <View style={styles.logo}>
 
-                    <Text style={styles.rodape}>##########################</Text>
+                    <Text style={styles.rodape}></Text>
                     <Image style={styles.logoimg} source={require('./img/meta.webp')} />
                 </View>
                 <Text style={styles.titleAtribuicao}>Atribuicao: {userContext.atribuicao}</Text>
                 <Text style={styles.title}>Tipo Sanguíneo: {userContext.tsg}</Text>
-                <Text style={styles.target}>Pr.Sergio && Pra.Cristina</Text>
+                <Text style={styles.target}>{}</Text>
             </View>
 
         </View>
@@ -101,7 +101,7 @@ const styles = StyleSheet.create({
     target: {
         fontSize: 15,
         fontWeight: 'bold',
-        marginLeft: 200,
+        marginLeft: 160,
         marginTop: 10,
         color: '#e6e6e6ff'
     },
