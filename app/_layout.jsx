@@ -61,7 +61,7 @@ export default function RootLayout() {
         <Stack.Screen
           name="eventos"
           options={{
-            headerTitle: "Eventos",
+            headerTitle: "Tarefas",
             headerShown: true,
             statusBarStyle: "light",
             headerStyle: { backgroundColor: "#000000ff" },

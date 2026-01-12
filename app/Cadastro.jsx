@@ -21,6 +21,7 @@ const { width, height } = Dimensions.get("window");
 
 export default function Cadastro() {
   const { userContext } = useContext(AppContext);
+
   const [churches, setChurches] = useState([]);
   const [loading, setLoading] = useState(false);
 
@@ -30,14 +31,12 @@ export default function Cadastro() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [nascimento, setNascimento] = useState("");
-  const [selectedValue, setSelectedValue] = useState("");
-
   const [selectedBranchId, setSelectedBranchId] = useState("");
 
+  // ✅ CORREÇÃO PRINCIPAL
   useEffect(() => {
-    if (userContext.churches && userContext.churches.length > 0) {
+    if (userContext?.churches?.length > 0) {
       setChurches(userContext.churches);
-      setSelectedBranchId(userContext.churches[0]?.branchId);
     }
   }, [userContext.churches]);
 
@@ -124,47 +123,41 @@ export default function Cadastro() {
 
       <Text style={styles.text}>Nome Completo</Text>
       <TextInput
-        onChangeText={(e) => setNome(e)}
         value={nome}
+        onChangeText={setNome}
         placeholder="Ex: João Silva"
-        placeholderTextColor={"#4e4e4eaf"}
         style={styles.textInput}
         editable={!loading}
       />
 
       <Text style={styles.text}>Email</Text>
       <TextInput
-        onChangeText={(e) => setEmail(e)}
         value={email}
+        onChangeText={setEmail}
         keyboardType="email-address"
         autoCapitalize="none"
-        autoCorrect={false}
-        placeholder="Ex: email@exemplo.com"
-        placeholderTextColor={"#4e4e4eaf"}
+        placeholder="email@exemplo.com"
         style={styles.textInput}
         editable={!loading}
       />
 
       <Text style={styles.text}>Senha</Text>
       <TextInput
-        onChangeText={(e) => setPassword(e)}
         value={password}
-        keyboardType="default"
-        secureTextEntry={true}
+        onChangeText={setPassword}
+        secureTextEntry
         placeholder="Mínimo 6 caracteres"
-        placeholderTextColor={"#4e4e4eaf"}
         style={styles.textInput}
         editable={!loading}
       />
 
       <Text style={styles.text}>Data de Nascimento</Text>
       <MaskedTextInput
-        onChangeText={(e) => setNascimento(e)}
         value={nascimento}
+        onChangeText={setNascimento}
         mask="99/99/9999"
         keyboardType="numeric"
         placeholder="DD/MM/AAAA"
-        placeholderTextColor={"#4e4e4eaf"}
         style={styles.textInput}
         editable={!loading}
       />
@@ -173,24 +166,19 @@ export default function Cadastro() {
       <View style={styles.pickerContainer}>
         <Picker
           selectedValue={selectedBranchId}
-          style={styles.picker}
-          onValueChange={(itemValue) => setSelectedBranchId(itemValue)}
+          onValueChange={setSelectedBranchId}
           enabled={!loading && churches.length > 0}
+          style={styles.picker}
         >
-          {churches.length === 0 ? (
-            <Picker.Item label="Carregando filiais..." value="" />
-          ) : (
-            <>
-              <Picker.Item label="Selecione uma filial" value="" />
-              {churches.map((item) => (
-                <Picker.Item
-                  key={item.branchId}
-                  label={item.branchName}
-                  value={item.branchId}
-                />
-              ))}
-            </>
-          )}
+          <Picker.Item label="Selecione uma filial" value="" />
+
+          {churches.map((item) => (
+            <Picker.Item
+              key={item.branchId}
+              label={item.branchName}
+              value={item.branchId}
+            />
+          ))}
         </Picker>
       </View>
 
@@ -198,25 +186,21 @@ export default function Cadastro() {
         onPress={handleRegister}
         style={[styles.button, loading && styles.buttonDisabled]}
         disabled={loading}
-        activeOpacity={0.7}
       >
         {loading ? (
-          <ActivityIndicator size="small" color="#FFFFFF" />
+          <ActivityIndicator color="#fff" />
         ) : (
           <Text style={styles.buttonText}>Cadastrar</Text>
         )}
       </TouchableOpacity>
 
-      <TouchableOpacity
-        onPress={() => route.push("/")}
-        style={styles.backButton}
-        disabled={loading}
-      >
+      <TouchableOpacity onPress={() => route.push("/")}>
         <Text style={styles.backButtonText}>Voltar para Login</Text>
       </TouchableOpacity>
     </View>
   );
 }
+
 
 const styles = StyleSheet.create({
   containerBody: {

@@ -5,11 +5,10 @@ import { Picker } from "@react-native-picker/picker";
 import { Link, useRouter } from "expo-router";
 import { collection, getDocs, query, where } from "firebase/firestore";
 import { useContext, useEffect, useState } from 'react';
-import { Dimensions, Image, StyleSheet, Text, TextInput, TouchableOpacity, View, } from "react-native";
+import { Dimensions, Image, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
 import Toast from 'react-native-toast-message';
 import { AppContext } from "../src/Data/contextApi";
 import { db } from "../src/Data/FirebaseConfig";
-import { setItem } from "../src/Data/storage";
 
 
 
@@ -26,121 +25,44 @@ export default function Login() {
   const [emailInput, setEmailInput] = useState('');
   const [passwordInput, setPasswordInput] = useState('');
   const [user , setUser] = useState();
-  const [churchData , setChurchData] = useState(["Selecione"]);
+  const [branchesData , setBranchesData] = useState(["Selecione"]);
   
   let isFilial = "selecione uma filial";
   
   const router = useRouter()
   
 
-  
-    // function seachUSer(params) {
-    //   setSearchUser(true);
-    //   console.log('buscando usuario ...');
-    //   setSearchUser(false);
-    // }
-    
- 
-     
-async function handleLogin() {
-
-  if (!emailInput || !passwordInput && !isFilial) return alert("Necessario Prencher todos os Campos e Selecionar a Filial")
-
-
-
-  
-
-       
-      try {
-           const queryUsers = query(collection(db, "users"), where("status", "==", "active"));
-            const dataUser = (await getDocs(queryUsers)) ;
-          
-            dataUser.forEach((data)=> {
-
-            if( data.data().email.trim().toLowerCase() === emailInput && data.data().password === passwordInput &&
-             data.data().branchName === selectedValue  ) {
-              setUser(data.data());
-              // console.log('usuario logado com sucesso');
-      
-              const userData = {emailInput, passwordInput , id: data.id, branchName:selectedValue, churches: churchData };
-              
-              setUserContext({...userContext, ...userData});
-              console.log(userContext);
-              setItem('user', JSON.stringify(userData)).then(() => {
-
-                console.log('Dados do usuário salvos com sucesso!', userData);
-                
-                // console.log(userContext, 'dados do contexto apos login');
-                console.log(userContext, 'dados do contexto apos login'); ; 
-              }).catch((error) => {
-                console.log('Erro ao salvar dados do usuário:', error);
-                // alert("Dados incorretor,verifique e tente novamente!");
-               
-              });
-              
-
-               
-                  
-                setTimeout(()=> {
-                  router.push("/tabs/home");
-                
-                },100);
-
-                  
-
-            } else {
-              
-            }
-
-          })
-        } catch (error) {
-              
-        }
-          
-          
-   
-      
-       
-     }
-
-
  useEffect(()=> {
     
   const  getChurchData = async () => {
     
       try {
-        const queryChurch = query(collection(db, "branches"),where("status", "==", "active"));
-        const dataChurch = (await getDocs(queryChurch)) ;
-        const churches = [];
-        const churchesNames = [];
-
-        dataChurch.forEach( (data)=> {
-          const churchItem = data.data();
-          const churchName = churchItem.name?.trim() || "";
-          
-        // Usar regex para remover "Meta -" independente de espaços
-        const cleanedName = churchName.replace(/Meta\s*\s*/i, "").trim();
         
-        churches.push({ 
-          ...churchItem, 
-          id: data.id, 
-          name: churchName,
-          cleanedName: cleanedName,
-          
-        });
         
-        churchesNames.push(cleanedName || churchName);
-         setChurchData(["Selecione", ...churchesNames])
-      
-      });
-      
-      // Corrigir: Você estava usando setChurchData apenas com o último nome
-      // Agora vamos usar um estado para array
-      // Isso deve ser um array
-      setUserContext({...userContext, nameRegister: churchesNames, churchesPr: churches[0].pastor}); // Definir o contexto com o array completo);
-      
+        
+        const queryBranc = query(collection(db, "branches"),where("status", "==", "active"));
+        
+        const dataBranch = (await getDocs(queryBranc));
+        
        
+        let nameBranches = []
 
+        let objectBranches = []
+
+        dataBranch.forEach((item)=> {
+                 
+
+           nameBranches.push(item.data().name);
+
+            objectBranches.push({
+            id:item.id,
+            name:item.data().name
+
+           })     
+      
+        })
+          setBranchesData([...branchesData, ...nameBranches]);
+          
         
       } catch (error) {
         
@@ -150,9 +72,78 @@ async function handleLogin() {
 
     getChurchData();
    
+    console.log(selectedValue)
     
 
- }, []);
+ },[]);
+
+
+ async function handleLogin() {
+
+  if (!emailInput || !passwordInput && !isFilial) return alert("Necessario Prencher todos os Campos e Selecionar a Filial")
+
+       
+      try {
+        
+           const queryUsers = query(collection(db, "users"), where("status", "==", "active"),
+            where("email", "==", emailInput.toLowerCase()),
+            where("password", "==", passwordInput.toLowerCase()),
+            where("branchName", "==", selectedValue)
+          );
+           
+
+
+           const dataUser = (await getDocs(queryUsers)) ;
+          
+           if (dataUser.empty) {
+            alert("usuario nao encontrado, verifique os dados e tente novamente!");
+
+            return;
+           }
+
+          await dataUser.forEach((item)=> {
+
+            setUserContext(
+               { 
+                id: item.id,
+                email: item.data().email,
+                branchName: item.data().branchName,
+                isLogged: true,
+                branchId : item.data().branchId, 
+              }
+            ); 
+            
+            console.log("dados do usuario setados no context", userContext)
+            
+          })
+          
+                alert("Login realizado com sucesso!");
+          
+               
+                 setTimeout(()=> {
+                router.push("/tabs/home");
+              
+              },100);
+          
+            
+       
+
+
+          
+        } catch (error) {
+            alert("Dados incorretos")
+         
+        }
+          
+          
+   
+      
+       
+     }
+
+
+
+
 
 
   
@@ -212,7 +203,7 @@ async function handleLogin() {
     >
       
 
-      {churchData.map((item)=>  (
+      {branchesData.map((item)=>  (
         <Picker.Item
         key={item} label={item} value={item} />
         

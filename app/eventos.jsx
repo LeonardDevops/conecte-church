@@ -1,24 +1,43 @@
-import { collection, getDocs } from 'firebase/firestore';
+import FontAwesome5 from '@expo/vector-icons/FontAwesome5';
+import { collection, getDocs, query, where } from 'firebase/firestore';
 import { useContext, useEffect, useState } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { db } from "../src/Data/FirebaseConfig";
 import { AppContext } from '../src/Data/contextApi';
 
-export default function Eventos () { 
+export default function Tasks () { 
 
 
-    const [eventos, setEventos] = useState ([]);
+    const [tasks, setTasks] = useState ([]);
     const {userContext} = useContext(AppContext);
 
     useEffect(()=> {
-
-        getDocs(collection(db, "eventos")).then((data) => { 
+        const queryRef = query(collection(db, "tasks"), where("idUser", "==", userContext.id));
+        const dataRef =  getDocs(queryRef);
         
-            data.forEach((doc) => {
-                setEventos((prevEventos) => [...prevEventos, doc.data()]);
-            }); 
-            
-            console.log(eventos);
+        dataRef.then((snapshot)=> {
+
+            const myTasks = []
+
+            snapshot.forEach((item)=> {
+                
+                myTasks.push({
+
+                id:item.id,
+                data: item.data().data,
+                text:item.data().evento,
+                grupo:item.data().grupo   
+                })
+                
+
+            })
+
+            setTasks(myTasks)
+
+
+        }).catch((erro)=>{
+         
+            console.log("erro ao buscar tarefas", erro)
         })
         
 
@@ -33,14 +52,19 @@ export default function Eventos () {
     return(
         <View style={styles.bodyEventos}>
             
-            <Text style={styles.title}>Progamacao de Eventos</Text>
-   {eventos
-      ?.filter(doc => doc.filial === userContext.filial)
-       .map((doc, index) => (
+            <Text style={styles.title}>To-do List</Text>
+   {tasks.map((doc ,index) => (
        <View key={index} style={styles.containerEventos}>
-       <Text style={styles.eventos}>31/10/2050</Text>
-       <Text style={styles.eventos}>{doc.evento}</Text>
+
+        <View style={styles.infoContainer}>
+       <Text style={styles.eventos}>{doc.grupo}</Text>
+       <Text style={styles.eventos}>{doc.text}</Text>
+       <Text style={styles.eventos}>{doc.data}</Text>
        </View>
+       <TouchableOpacity>
+       <FontAwesome5 name="trash" size={24} color="#d43c008c"  />
+       </TouchableOpacity>
+        </View>
       ))
    }
 
@@ -67,6 +91,7 @@ export default function Eventos () {
     containerEventos: {
         width: '98%',
         backgroundColor: '#000000ff',
+        flexDirection:"row",
         alignItems: 'center',
         height: '10%',
         justifyContent: 'center',
@@ -83,6 +108,16 @@ export default function Eventos () {
      eventos: {
         color: '#fff',
         fontSize:15
+     },
+     text: {
+        color: '#fff',
+        fontSize:15
+     },
+     infoContainer : {   
+        width: '92%',
+        justifyContent:"center",
+        alignItems:"center",
+        textAlign:"justify"
      }
 
  });

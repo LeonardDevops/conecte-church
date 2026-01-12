@@ -1,9 +1,10 @@
 // ===== Importações =====
-import { getDownloadURL, getStorage, listAll, ref } from "firebase/storage";
+import { collection, getDocs, query, where } from "firebase/firestore";
 import { useContext, useEffect, useState } from "react";
 import { Dimensions, Image, StyleSheet, Text, View } from "react-native";
 import Carousel from "react-native-reanimated-carousel";
 import { AppContext } from "../../src/Data/contextApi";
+import { db, storage } from "../../src/Data/FirebaseConfig";
 
 
 // Captura a largura da tela do dispositivo
@@ -17,34 +18,31 @@ export default function Home() {
   
 
   // === useEffect roda assim que o componente é montado ===
+ 
+
   useEffect(() => {
+
+     console.log("userContext no home", userContext)  
     const loadImages = async () => {
       try {
-        // Cria uma instância do storage configurado no Firebase
-        const storage = getStorage();
 
-        // Cria uma referência para a pasta "home/" dentro do seu storage
-        const storageRef = ref(storage, `home/${userContext.branchName}`);
+        const storage =  query(collection(db, "events"), where("branchId", "==", userContext.branchId));
+        const dataRef =   await (getDocs(storage)) ;
+        
+        let result = [] ;
 
-        // Lista todos os arquivos dentro dessa pasta
-        const result = await listAll(storageRef); // result.items é um array com referências para cada arquivo
-
-        // Para cada item encontrado, gera a URL de download pública
-        const urls = await Promise.all(
-          result.items.map((itemRef) => getDownloadURL(itemRef))
-        );
-
-        // Salva as URLs no estado (isso atualiza automaticamente a tela)
-        setDataImg(urls);
-        console.log(userContext);
-        console.log("✅ Imagens carregadas com sucesso:", urls);
+          dataRef.forEach((data)=> {
+          result.push(data.data().banner);
+          setDataImg(result);
+        })
+        
       } catch (error) {
         console.log("❌ Erro ao carregar imagens:", error);
       }
     };
 
-    // Chama a função que carrega as imagens
-    loadImages();
+    
+   if (storage) loadImages();
   }, []); // O array vazio faz o efeito rodar só uma vez (ao abrir a tela)
 
   // === Renderização do componente ===

@@ -6,7 +6,7 @@ import FontAwesome from '@expo/vector-icons/FontAwesome';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import * as ImagePicker from 'expo-image-picker';
 import { useRouter } from "expo-router";
-import { collection, doc, getDocs, updateDoc } from "firebase/firestore";
+import { collection, doc, getDoc, updateDoc, } from "firebase/firestore";
 import { getDownloadURL, getStorage, ref, uploadBytes } from "firebase/storage";
 import { useContext, useEffect, useState } from "react";
 import { Alert, Dimensions, Image, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
@@ -39,33 +39,43 @@ export default function Config() {
   const { setUserContext , userContext} = useContext(AppContext);
 
   useEffect(() => {
+
+    
     const fetchData = async () => {
-      const userData = await getItem('user');
-      if (!userData) return;
+      
+      try {
+      const querySnapshot = doc(db,'users',userContext.id);
+      const dataSnapp = await getDoc(querySnapshot);
 
-      const { emailInput , id } = JSON.parse(userData);
-      console.log(id, ' carregando id usuario')
+      if (!dataSnapp.exists()) {
+        console.log('Usuário encontrado no useEffect do config');
+        
+        return;}
 
-      const querySnapshot = await getDocs(collection(db,'users'));
-
-      querySnapshot.forEach(async (docSnap)=> {
-        const user = docSnap.data();
-        if (user.email.toLowerCase() === emailInput.toLowerCase()) {
-          setUserId(docSnap.id);
-          setLoading(docSnap.id);
+        
+          const user = dataSnapp.data();
+          
+          setUserId(dataSnapp.id);
+          setLoading(dataSnapp.id);
           setusuarios(user);
           setNome(user.name);
           setImgID(true);
-          setDataNascimento(user.nascimento);
+          setDataNascimento(user.birthDate);
           setCelular(user.phone);
           setTsg(user.tsg);
           setAtribuicao(user.atribuicao);
           setSearchUser({emailInput: user.email});
           setUserContext(user);
-        }
-      });
+     
+      
+      } catch (error) {
+
+        console.log('Erro ao buscar usuário:', error);
+
+      }
     }
     fetchData();
+
   }, []);
 
   console.log(userId, ' ID do usuario no config');

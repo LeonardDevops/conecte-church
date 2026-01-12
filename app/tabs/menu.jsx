@@ -2,7 +2,6 @@ import Entypo from '@expo/vector-icons/Entypo';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 import FontAwesome5 from '@expo/vector-icons/FontAwesome5';
 import Ionicons from '@expo/vector-icons/Ionicons';
-import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { useRouter } from "expo-router";
 import { useContext } from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
@@ -41,15 +40,15 @@ export default function Menu() {
             <Text style={styles.text}>Redes Sociais</Text> 
           </TouchableOpacity>
 
-            <TouchableOpacity style={styles.button}
-            onPress={goCard}
+            <TouchableOpacity style={styles.buttonDisable}
+            
             >
-          <FontAwesome name="id-card" size={24} color="#a3a3a3ff" />
+          <FontAwesome name="id-card" size={24} color="rgb(214, 213, 213)" />
             <Text style={styles.text}>Carteirinha</Text>
             </TouchableOpacity>
           
-            <TouchableOpacity style={styles.button}>
-            <Entypo name="google-play" size={28} color="#e00000ff" />
+            <TouchableOpacity style={styles.buttonDisable}>
+            <Entypo name="google-play" size={28} color="rgb(202, 11, 11)" />
             <Text style={styles.text}>PlayList</Text>  
             </TouchableOpacity>
             
@@ -61,8 +60,15 @@ export default function Menu() {
           <TouchableOpacity
           onPress={goEventos}
           style={styles.button}>
-            <MaterialIcons name="event" size={24} color="#2188e9ec" />
-           <Text style={styles.text}>Eventos</Text>
+            <FontAwesome5 name="tasks" size={24} color="#2188e9ec" />
+           <Text style={styles.text}>Tarefas</Text>
+          </TouchableOpacity>
+          
+          <TouchableOpacity
+          
+          style={styles.buttonDisable}>
+            <Ionicons name="document-text" size={24} color="#fff" />
+           <Text style={styles.text}>Formulario</Text>
           </TouchableOpacity>
           
           <TouchableOpacity 
@@ -95,6 +101,20 @@ const styles = StyleSheet.create({
 
   button :{
     backgroundColor:'#000000e3',
+    width:'98%',
+    height:50,
+    justifyContent:'center',
+    alignItems:'center',
+    borderRadius:1,
+    shadowOpacity:0.5,
+    shadowRadius:20,
+    shadowOffset:{width:0,height:2},
+    elevation:5,
+    flexDirection:'row',
+    gap:10
+  },
+  buttonDisable :{
+    backgroundColor:'#707070e3',
     width:'98%',
     height:50,
     justifyContent:'center',

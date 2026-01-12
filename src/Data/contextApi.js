@@ -1,19 +1,20 @@
+import { collection, getDocs } from "firebase/firestore";
 import { createContext, useEffect, useMemo, useState } from "react";
+import { db } from "./FirebaseConfig";
 
 export const AppContext = createContext(null);
 
 export const AppProvider = ({ children }) => {
-  // Estado inicial mais seguro
   const [userContext, setUserContext] = useState({
     id: null,
     email: null,
-    branchName: null,
     churches: [],
     isLogged: false,
   });
 
   async function carregarDados() {
     try {
+      console.log("carregarDados: buscando filiais..., Do contexto das igrejas" );
       const querySnapshot = await getDocs(collection(db, "branches"));
 
       const branchesFormatted = querySnapshot.docs.map((doc) => {
@@ -23,10 +24,13 @@ export const AppProvider = ({ children }) => {
           branchName: data.branchName,
           churchId: data.churchId,
           churchName: data.churchName,
+          churchPr: data.pastor?.name
         };
       });
 
       setUserContext((prev) => ({ ...prev, churches: branchesFormatted }));
+      console.log("carregarDados: branchesFormatted:", branchesFormatted);
+      
     } catch (error) {
       console.error("Erro ao carregar dados das branches:", error);
     }
@@ -36,14 +40,6 @@ export const AppProvider = ({ children }) => {
     carregarDados();
   }, []);
 
-  // Log apenas quando userContext mudar
-  // (e não toda vez que o componente renderiza)
-  // Forma mais limpa
-  // useEffect(() => {
-  //   console.log("📌 UserContext atualizado:", userContext);
-  // }, [userContext]);
-
-  // Evita re-renderização desnecessária dos componentes filhos
   const contextValue = useMemo(
     () => ({
       userContext,

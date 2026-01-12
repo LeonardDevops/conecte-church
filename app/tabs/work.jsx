@@ -1,10 +1,10 @@
 import Feather from '@expo/vector-icons/Feather';
 import { Picker } from "@react-native-picker/picker";
-import { addDoc, collection, getDocs, query, where } from "firebase/firestore";
+import { addDoc, collection, getDocs } from "firebase/firestore";
 import { useContext, useEffect, useState } from "react";
-import { Dimensions, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
+import { Dimensions, StyleSheet, TextInput, TouchableOpacity, View } from "react-native";
 import { Calendar } from 'react-native-calendars';
-import Animated, { FadeIn, FadeOut, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
+import { useSharedValue } from 'react-native-reanimated';
 import Toast from 'react-native-toast-message';
 import { db } from "../../src/Data/FirebaseConfig";
 import { AppContext } from '../../src/Data/contextApi';
@@ -40,15 +40,16 @@ export default function Work() {
       return;
     }
 
-    // Encontrar o grupo selecionado pelo id
-    const grupoSelecionado = listaGrupos.find((item) => item.id === selectedGroupId);
-    
-    await addDoc(collection(db, "tarefas"), {
+  
+ 
+
+    await addDoc(collection(db, "tasks"), {
       evento: evento.trim(),
       idUser: userContext.id,
+      idTaskOption: selectedGroupId,
       data: selectedDate,
-      grupo: grupoSelecionado ? grupoSelecionado.nomeWork : "",
-      membros: grupoSelecionado ? grupoSelecionado.membros : "" // se for array, vai armazenar array
+      grupo:selectedGroupId.replace(/^.*\?/, "") // Extrai o nome do grupo do id
+      
     })
     .then(() => {
       Toast.show({
@@ -84,72 +85,41 @@ export default function Work() {
     });
   }
 
-  async function getTarefasDaData(data) {
+  // 🔹 BUSCA GRUPOS
+useEffect(() => {
+  async function getGrupos() {
     try {
       const snapshot = await getDocs(
-        query(
-          collection(db, "tarefas"),
-          where("data", "==", data),
-          where("idUser", "==", userContext.id)
-        )
+        collection(db, 'tasksOpitions')
       );
 
-      const lista = [];
+      console.log(snapshot, 'snapshot dos grupos');
+
+      const data = [];
+
       snapshot.forEach((doc) => {
-        lista.push( doc.data().nome );
+        const options = doc.data().options || [];
+
+        options.forEach((option) => {
+          data.push({
+            id:`${doc.id}?${option}`,
+            taskOption: option
+        });
+      
       });
 
-      setListaTarefas(lista.nome );
+      });
+      setListaGrupos(data);
+      console.log(data,'grupos carregados');
+
     } catch (error) {
-      console.log("Erro ao carregar tarefas:", error);
+      console.error('Erro ao buscar grupos:', error);
     }
   }
 
-  function openTarefas() {
-    const novoEstado = !openDrawer;
-    setOpenDrawer(novoEstado);
-    
-    if (novoEstado && selectedDate) {
-      getTarefasDaData(selectedDate);
-    }
-    
-    widthValue.value = withTiming(novoEstado ? 150 : 0, { duration: 500 });
-    heightValue.value = withTiming(novoEstado ? 150 : 0, { duration: 500 });
-  }
+  getGrupos();
+}, []);
 
-  const animatedStyle = useAnimatedStyle(() => {
-    return {
-      width: widthValue.value,
-      height: heightValue.value,
-      backgroundColor: withTiming(openDrawer ? '#8b8b8b75' : '#c4c4c4'),
-    };
-  });
-
-  // 🔹 BUSCA GRUPOS
-  useEffect(() => {
-    async function getGrupos() {
-      try {
-        const snapshot = await getDocs(collection(db, "grupoTarefas"));
-        
-        const data = []
-
-        snapshot.forEach((doc) => {
-          
-          data.push(doc.data().nomeGroup);
-         
-  
-        });
-         
-
-        setListaGrupos(data);
-      
-      } catch (error) {
-        console.log(error);
-      }
-    }
-
-    getGrupos();
-  }, []);
 
   return (
     <View style={{
@@ -218,9 +188,9 @@ export default function Work() {
         <Picker.Item label='Selecione uma opção' value='' />
         {listaGrupos.map((item) => (
           <Picker.Item
-            key={item}
-            label={item}
-            value={item}
+            key={item.id}
+            label={item.taskOption}
+            value={item.id}
           />
         ))}
       </Picker>
@@ -241,79 +211,7 @@ export default function Work() {
           },
         }}
       />
-
-      <TouchableOpacity
-        style={styles.tarefas}
-        onPress={openTarefas}
-      >
-        <View style={{ 
-          flexDirection: 'row', 
-          alignItems: 'center',
-          justifyContent: 'center',
-          width: '100%'
-        }}>
-          <Text style={[styles.textTarefas, { fontSize: height * 0.022 }]}>
-            {!openDrawer ? 'carregar tarefas...' : 'Fechar Lista de Tarefas'}
-          </Text>
-
-          <Feather
-            name={!openDrawer ? 'chevron-down' : 'chevron-up'}
-            size={height * 0.03}
-            color="#fff"
-            style={{ marginLeft: 10 }}
-          />
-        </View>
-      </TouchableOpacity>
-
-      {openDrawer && (
-        <Animated.View 
-          entering={FadeIn.duration(400)}
-          exiting={FadeOut.duration(400)}
-          style={[styles.flatListContainer, animatedStyle]}
-        >
-          <Animated.FlatList
-            style={styles.flatList}
-            data={listaTarefas}
-            keyExtractor={(item) => item.id}
-            renderItem={({ item }) => (
-              <View style={{
-                backgroundColor: '#5ceb1f',
-                padding: height * 0.015,
-                borderRadius: 10,
-                marginTop: height * 0.015,
-                gap: 5,
-                width: '97%',
-                justifyContent: 'center',
-                alignItems: 'center',
-                marginLeft: '1.5%'
-              }}>
-                <Text style={[styles.textList, { fontSize: height * 0.023 }]}>
-                  Tarefa: {item.evento}
-                </Text>
-                <Text style={[styles.textList, { fontSize: height * 0.023 }]}>
-                  {item.data}
-                </Text>
-                {item.grupo && (
-                  <Text style={[styles.textList, { fontSize: height * 0.020, color: '#555' }]}>
-                    Grupo: {item.grupo}
-                  </Text>
-                )}
-              </View>
-            )}
-            ListEmptyComponent={
-              <Text style={{
-                textAlign: 'center',
-                marginTop: 20,
-                fontSize: height * 0.02,
-                color: '#666'
-              }}>
-                Nenhuma tarefa para esta data
-              </Text>
-            }
-          />
-        </Animated.View>
-      )}
-
+      
       <Toast />
     </View>
   );
