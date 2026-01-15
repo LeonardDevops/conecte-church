@@ -1,11 +1,9 @@
-// AppModernPix.js
-import * as Clipboard from "expo-clipboard";
-import { addDoc, collection } from "firebase/firestore";
-import { useContext, useEffect, useRef, useState } from "react";
+import * as Clipboard from 'expo-clipboard';
+import { addDoc, collection, serverTimestamp } from "firebase/firestore";
+import { useContext, useEffect, useState } from "react";
 import {
   Alert,
-  Animated,
-  Easing,
+  Dimensions,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
@@ -13,805 +11,639 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
-  TouchableWithoutFeedback,
-  View,
+  View
 } from "react-native";
 import QRCode from "react-native-qrcode-svg";
-import { SafeAreaView } from "react-native-safe-area-context";
-import { db } from "../../src/Data/FirebaseConfig";
 import { AppContext } from "../../src/Data/contextApi";
+import { db } from "../../src/Data/FirebaseConfig"; // Importe sua configuração do Firebase
 
-/* =======================
-   CONFIGURAÇÕES PIX
-   ======================= */
-const PIX_KEYS = {
-  Matriz: "55188c2a-0fd2-4575-a85f-7d5b825577a9",
-  Palmares: "13924066760",
-  Sepetiba: "55188c2a-0fd2-4575-a85f-7d5b825577a9",
-};
+const { width, height } = Dimensions.get("window");
 
-const RECEIVER_NAME = "IGREJA META";
-const RECEIVER_CITY = "RIO DE JANEIRO";
-
-/* =======================
-   FUNÇÕES PIX OTIMIZADAS
-   ======================= */
-function emv(id, value) {
-  const v = String(value);
-  return id + v.length.toString().padStart(2, "0") + v;
-}
-
-function crc16(payload) {
-  const polynomial = 0x1021;
-  let crc = 0xFFFF;
-  
-  for (let i = 0; i < payload.length; i++) {
-    crc ^= payload.charCodeAt(i) << 8;
-    
-    for (let j = 0; j < 8; j++) {
-      if (crc & 0x8000) {
-        crc = (crc << 1) ^ polynomial;
-      } else {
-        crc = crc << 1;
-      }
-      crc &= 0xFFFF;
-    }
-  }
-  
-  return crc.toString(16).toUpperCase().padStart(4, '0');
-}
-
-function buildPayload(chave, nome, cidade, valor) {
-  if (!valor || isNaN(Number(valor)) || Number(valor) <= 0) {
-    return "";
-  }
-
-  // Limitar nome e cidade para evitar problemas com caracteres especiais
-  const nomeLimpo = nome.replace(/[^\x20-\x7E]/g, '');
-  const cidadeLimpa = cidade.replace(/[^\x20-\x7E]/g, '');
-  
-  const valorFormatado = Number(valor).toFixed(2);
-  
-  // GUI do PIX
-  const gui = emv("00", "BR.GOV.BCB.PIX");
-  
-  // Chave PIX (remove caracteres especiais)
-  const chaveLimpa = chave.replace(/[^a-zA-Z0-9]/g, '');
-  const key = emv("01", chaveLimpa);
-  
-  // Merchant Account Information
-  const merchantAccount = "26" + 
-    (gui + key).length.toString().padStart(2, "0") + 
-    gui + key;
-  
-  // Montar payload principal
-  const payload =
-    emv("00", "01") + // Payload Format Indicator
-    emv("01", "11") + // Point of Initiation Method (11 = estático, 12 = dinâmico)
-    merchantAccount + // Merchant Account Information
-    emv("52", "0000") + // Merchant Category Code
-    emv("53", "986") + // Currency (BRL)
-    emv("54", valorFormatado) + // Transaction Amount
-    emv("58", "BR") + // Country Code
-    emv("59", nomeLimpo.substring(0, 25)) + // Merchant Name (max 25 chars)
-    emv("60", cidadeLimpa.substring(0, 15)) + // Merchant City (max 15 chars)
-    "62070503***"; // Additional Data Field (Reference)
-  
-  // Calcular CRC16
-  const crc = crc16(payload + "6304");
-  
-  return payload + "6304" + crc;
-}
-
-function gerarUrlPix(chave, nome, cidade, valor) {
-  const valorFormatado = Number(valor).toFixed(2);
-  const nomeCodificado = encodeURIComponent(nome.substring(0, 25));
-  const cidadeCodificada = encodeURIComponent(cidade.substring(0, 15));
-  
-  return `pix://${chave}?amount=${valorFormatado}&name=${nomeCodificado}&city=${cidadeCodificada}&txid=IGREJA${Date.now()}`;
-}
-
-/* =======================
-   APP PRINCIPAL
-   ======================= */
-export default function AppModernPix() {
-  const { userContext } = useContext(AppContext);
-  console.log("UserContext recebido:", userContext);
-  console.log("Filial do contexto:", userContext?.branchName);
-
-  const [valor, setValor] = useState("");
+export default function Ofertas({ navigation }) {
   const [tipo, setTipo] = useState("Dízimo");
-  const [filial, setFilial] = useState(userContext?.filial || "Matriz");
-  const [payloadGerado, setPayloadGerado] = useState("");
-  const [botaoModo, setBotaoModo] = useState("gerar");
-  const [copiado, setCopiado] = useState(false);
-  const [urlPix, setUrlPix] = useState("");
+  const [valor, setValor] = useState("");
+  const [descricao, setDescricao] = useState("");
+  const [qrCodeUrl, setQrCodeUrl] = useState("");
+  const [pixPayload, setPixPayload] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [qrGenerated, setQrGenerated] = useState(false);
 
-  const slideType = useRef(new Animated.Value(0)).current;
-  const slideBranch = useRef(new Animated.Value(0)).current;
-  const qrAnim = useRef(new Animated.Value(0)).current;
-  const successAnim = useRef(new Animated.Value(0)).current;
-
-  // Atualiza a filial quando o contexto mudar
+  const { userContext } = useContext(AppContext);
+  
+  // Verificar estrutura do contexto
   useEffect(() => {
-    if (userContext?.branchName) {
-      setFilial(userContext.branchName);
-    }
+    console.log("Contexto do usuário:", userContext);
+    console.log("Pix Config:", userContext?.pixConfig);
   }, [userContext]);
 
-  /* anima indicador tipo */
-  useEffect(() => {
-    Animated.spring(slideType, {
-      toValue: tipo === "Dízimo" ? 0 : 1,
-      useNativeDriver: true,
-    }).start();
-  }, [tipo]);
-
-  // Define filiais disponíveis
-  const filiaisDisponiveis = userContext?.branchName 
-    ? [userContext.branchName] 
-    : ["Matriz", "Palmares", "Sepetiba"];
-
-  // Calcula largura dinâmica para o indicador
-  const branchIndicatorWidth = 100 / filiaisDisponiveis.length;
-
-  /* anima indicador filial */
-  useEffect(() => {
-    const index = filiaisDisponiveis.indexOf(filial);
-    Animated.spring(slideBranch, {
-      toValue: index >= 0 ? index : 0,
-      useNativeDriver: true,
-    }).start();
-  }, [filial, filiaisDisponiveis]);
-
-  /* gerar PIX */
-  const gerarPIX = () => {
-    if (!valor || isNaN(Number(valor)) || Number(valor) <= 0) {
-      Alert.alert("Atenção", "Digite um valor válido para gerar o PIX.");
-      return;
-    }
-
-    const chave = PIX_KEYS[filial];
-    if (!chave) {
-      Alert.alert("Erro", "Chave PIX não encontrada para esta filial.");
-      return;
-    }
-
-    const nomeCompleto = `${RECEIVER_NAME} - ${filial}`;
+  // Função para gerar payload PIX
+  const generatePixPayload = (chavePix, valor, descricao) => {
+    if (!chavePix || !valor) return "";
     
-    // Gerar payload padrão PIX
-    const payload = buildPayload(chave, nomeCompleto, RECEIVER_CITY, valor);
+    const valorFormatado = parseFloat(valor).toFixed(2);
+    const nomeRecebedor = userContext?.pixConfig?.nome || "IGREJA META";
+    const cidade = userContext?.pixConfig?.cidade || "RIO DE JANEIRO";
     
-    // Gerar URL PIX como alternativa
-    const url = gerarUrlPix(chave, nomeCompleto, RECEIVER_CITY, valor);
+    // Formatação básica do payload PIX (simplificada)
+    const payload = `0002012658${chavePix.length.toString().padStart(2, '0')}${chavePix}52040000530398654${valorFormatado.length.toString().padStart(2, '0')}${valorFormatado}5802BR59${nomeRecebedor.length.toString().padStart(2, '0')}${nomeRecebedor}60${cidade.length.toString().padStart(2, '0')}${cidade}62070503***`;
     
-    setPayloadGerado(payload);
-    setUrlPix(url);
-    setBotaoModo("copiar");
-    setCopiado(false);
-
-    // Animação do QR Code
-    qrAnim.setValue(0);
-    Animated.timing(qrAnim, {
-      duration: 450,
-      easing: Easing.out(Easing.cubic),
-      toValue: 1,
-      useNativeDriver: true,
-    }).start();
+    // Cálculo do CRC16 (simplificado)
+    const calculateCRC16 = (str) => {
+      let crc = 0xFFFF;
+      for (let i = 0; i < str.length; i++) {
+        crc ^= str.charCodeAt(i) << 8;
+        for (let j = 0; j < 8; j++) {
+          crc = crc & 0x8000 ? (crc << 1) ^ 0x1021 : crc << 1;
+          crc &= 0xFFFF;
+        }
+      }
+      return crc.toString(16).toUpperCase().padStart(4, '0');
+    };
+    
+    const crc = calculateCRC16(payload + "6304");
+    return payload + "6304" + crc;
   };
 
-  /* copiar PIX */
-  const copyToClipboard = async () => {
-    if (!payloadGerado) return;
+  const gerarQRCode = async () => {
+    if (!valor || isNaN(parseFloat(valor)) || parseFloat(valor) <= 0) {
+      Alert.alert("Atenção", "Por favor, informe um valor válido.");
+      return;
+    }
+
+    // Verificar se temos chave PIX no contexto
+    const chavePix = userContext?.pixConfig?.pixKey;
+    if (!chavePix) {
+      Alert.alert("Erro", "Chave PIX não configurada no sistema.");
+      return;
+    }
+
+    setLoading(true);
+    
+    try {
+      const valorNumerico = parseFloat(valor).toFixed(2);
+      
+      // Gerar payload PIX
+      const payload = generatePixPayload(chavePix, valorNumerico, descricao);
+      
+      // Gerar URL para QR Code
+      const qrData = {
+        pixKey: chavePix,
+        amount: valorNumerico,
+        description: `${tipo}: ${descricao || "Contribuição"}`,
+        recipient: userContext?.pixConfig?.nome || "IGREJA META",
+        city: userContext?.pixConfig?.cidade || "RIO DE JANEIRO",
+        transactionId: `IGREJA${Date.now()}`
+      };
+      
+      // URL PIX formatada
+      const pixUrl = `pix://${encodeURIComponent(chavePix)}?amount=${valorNumerico}&name=${encodeURIComponent(qrData.recipient)}&city=${encodeURIComponent(qrData.city)}&txid=${qrData.transactionId}`;
+      
+      setPixPayload(payload);
+      setQrCodeUrl(pixUrl);
+      setQrGenerated(true);
+      
+      Alert.alert(
+        "QR Code Gerado!",
+        `Tipo: ${tipo}\nValor: R$ ${valorNumerico}\n${descricao ? `Descrição: ${descricao}` : ''}\n\nClique em "Copiar PIX" para compartilhar.`,
+        [
+          { text: "OK", style: "default" }
+        ]
+      );
+      
+    } catch (error) {
+      console.error("Erro ao gerar QR Code:", error);
+      Alert.alert("Erro", "Não foi possível gerar o QR Code.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const copiarCodigo = async () => {
+    if (!pixPayload) {
+      Alert.alert("Atenção", "Gere o QR Code primeiro.");
+      return;
+    }
 
     try {
-      // Tenta copiar o payload primeiro
-      await Clipboard.setStringAsync(payloadGerado);
-      
-      // Animação de sucesso
-      successAnim.setValue(0);
-      Animated.spring(successAnim, {
-        toValue: 1,
-        useNativeDriver: true,
-        tension: 150,
-        friction: 10,
-      }).start();
-      
-      setCopiado(true);
+      await Clipboard.setStringAsync(pixPayload);
       
       // Salvar no Firestore
-      try {
-        const data = new Date();
-        const dataFormatada = data.toLocaleDateString('pt-BR');
-        console.log(dataFormatada, 'data atual');
-        
-        await addDoc(collection(db, "finances"), {
-          type: tipo,
-          amount: parseFloat(valor),
-          brancheName: userContext?.branchName || filial,
-          date: dataFormatada,
-          createAt: data.toISOString(),
-          payload: payloadGerado.substring(0, 50) + "..."
-        });
-        console.log("Contribuição registrada com sucesso");
-      } catch (firestoreError) {
-        console.log("Erro ao registrar contribuição:", firestoreError);
-      }
+      const financeData = {
+        type: tipo,
+        amount: parseFloat(valor),
+        descripition: descricao || tipo,
+        pixKey: userContext?.pixConfig?.pixKey,
+        qrCodeUrl: qrCodeUrl,
+        usuario: userContext?.email || "Anônimo",
+        branchName: userContext?.branchName || "Matriz",
+        date: new Date().toLocaleDateString('pt-BR'),
+        timestamp: serverTimestamp(),
+        status: "pendente",
+        branchId:userContext?.branchId
+      };
 
-      // Mostrar alerta após animação
-      setTimeout(() => {
-        Alert.alert(
-          "✅ PIX Copiado!",
-          "Cole o código no aplicativo do seu banco para realizar o pagamento.\n\n" +
-          "No Nubank: Pix → Pagar com Pix → Pix Copia e Cola",
-          [
-            {
-              text: "Entendi",
-              style: "default"
+      await addDoc(collection(db, "finances"), financeData);
+      
+      Alert.alert(
+        "✅ Sucesso!",
+        "Código PIX copiado e contribuição registrada!\n\nCole no aplicativo do seu banco para realizar o pagamento.",
+        [
+          { 
+            text: "Entendi", 
+            style: "default",
+            onPress: () => {
+              // Opcional: Navegar para histórico ou limpar
+              setValor("");
+              setDescricao("");
+              setQrGenerated(false);
             }
-          ]
-        );
-      }, 300);
-
-      setBotaoModo("gerar");
+          }
+        ]
+      );
+      
     } catch (error) {
-      Alert.alert("Erro", "Não foi possível copiar o código PIX.");
+      console.error("Erro ao copiar/salvar:", error);
+      Alert.alert("Erro", "Não foi possível copiar o código.");
     }
   };
 
-  const botaoPress = () => {
-    if (botaoModo === "gerar") {
-      gerarPIX();
-    } else {
-      copyToClipboard();
-    }
+  const limparCampos = () => {
+    setValor("");
+    setDescricao("");
+    setQrCodeUrl("");
+    setPixPayload("");
+    setQrGenerated(false);
   };
 
-  const resetarPIX = () => {
-    setPayloadGerado("");
-    setUrlPix("");
-    setBotaoModo("gerar");
-    setCopiado(false);
-    qrAnim.setValue(0);
-  };
-
-  const typeIndicatorTranslate = slideType.interpolate({
-    inputRange: [0, 1],
-    outputRange: [0, 120],
-  });
-
-  // CORREÇÃO DO ERRO: Ajuste dinâmico do branch indicator
-  // Se houver apenas uma filial, não precisamos de animação de transição
-  const branchIndicatorTranslate = slideBranch.interpolate({
-    inputRange: [0, filiaisDisponiveis.length - 1 || 1], // Garante pelo menos 2 elementos
-    outputRange: [0, (filiaisDisponiveis.length - 1) * branchIndicatorWidth],
-  });
-
-  const qrStyle = {
-    opacity: qrAnim,
-    transform: [
-      {
-        scale: qrAnim.interpolate({
-          inputRange: [0, 1],
-          outputRange: [0.8, 1],
-        }),
-      },
-    ],
-  };
-
-  const successScale = successAnim.interpolate({
-    inputRange: [0, 0.5, 1],
-    outputRange: [1, 1.2, 1],
-  });
-
-  const successOpacity = successAnim.interpolate({
-    inputRange: [0, 1],
-    outputRange: [1, 0],
-  });
+  // Informações da chave PIX
+  const pixInfo = userContext?.pixConfig || {};
+  const chaveMascarada = pixInfo.pixKey 
+    ? `${pixInfo.pixKey.substring(0, 10)}...${pixInfo.pixKey.substring(pixInfo.pixKey.length - 4)}`
+    : "Não configurada";
 
   return (
-    <SafeAreaView style={styles.safe} edges={["top", "left", "right"]}>
-      <KeyboardAvoidingView
-        behavior={Platform.select({ ios: "padding", android: undefined })}
-        style={{ flex: 1 }}
-        keyboardVerticalOffset={Platform.select({ ios: 0, android: 20 })}
+    <KeyboardAvoidingView 
+      style={styles.container}
+      behavior={Platform.OS === "ios" ? "padding" : "height"}
+      keyboardVerticalOffset={Platform.OS === "ios" ? 64 : 0}
+    >
+      <ScrollView 
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
       >
-        <ScrollView
-          contentContainerStyle={styles.scroll}
-          keyboardShouldPersistTaps="handled"
-          showsVerticalScrollIndicator={false}
-        >
-          <View style={styles.header}>
-            <Text style={styles.appTitle}>Dízimos & Ofertas</Text>
-            <Text style={styles.appSubtitle}>Selecione, digite o valor e gere o PIX</Text>
-          </View>
-
-          <View style={styles.card}>
-            {/* TIPO */}
-            <Text style={styles.label}>Tipo</Text>
-
-            <View style={styles.segmentWrap}>
-              <View style={styles.segmentRow}>
-                <Animated.View
-                  style={[
-                    styles.segmentIndicator,
-                    { transform: [{ translateX: typeIndicatorTranslate }] },
-                  ]}
-                />
-
-                <TouchableWithoutFeedback onPress={() => setTipo("Dízimo")}>
-                  <View style={styles.segmentItem}>
-                    <Text
-                      style={[
-                        styles.segmentText,
-                        tipo === "Dízimo" && styles.segmentTextActive,
-                      ]}
-                    >
-                      Dízimo
-                    </Text>
-                  </View>
-                </TouchableWithoutFeedback>
-
-                <TouchableWithoutFeedback onPress={() => setTipo("Oferta")}>
-                  <View style={styles.segmentItem}>
-                    <Text
-                      style={[
-                        styles.segmentText,
-                        tipo === "Oferta" && styles.segmentTextActive,
-                      ]}
-                    >
-                      Oferta
-                    </Text>
-                  </View>
-                </TouchableWithoutFeedback>
-              </View>
+        <View style={styles.header}>
+          <Text style={styles.title}>Dízimos e Ofertas</Text>
+          <Text style={styles.subtitle}>Contribua para a obra de Deus</Text>
+          
+          {/* Info da chave PIX */}
+          {pixInfo.pixKey && (
+            <View style={styles.pixInfoContainer}>
+              <Text style={styles.pixInfoText}>
+                Chave PIX: {chaveMascarada}
+              </Text>
+              <Text style={styles.pixInfoSubtext}>
+                {pixInfo.nome} - {pixInfo.cidade}
+              </Text>
             </View>
+          )}
+        </View>
 
-            {/* FILIAL */}
-            <Text style={[styles.label, { marginTop: 20 }]}>Filial</Text>
-
-            <View style={[styles.segmentWrap, { width: "100%" }]}>
-              <View style={styles.segmentRowFilial}>
-                {/* Só mostra o indicador se houver mais de uma filial */}
-                {filiaisDisponiveis.length > 1 && (
-                  <Animated.View
-                    style={[
-                      styles.branchIndicator,
-                      { 
-                        transform: [{ translateX: branchIndicatorTranslate }],
-                        width: `${branchIndicatorWidth}%`
-                      },
-                    ]}
-                  />
-                )}
-
-                {filiaisDisponiveis.map((item) => (
-                  <TouchableWithoutFeedback 
-                    key={item} 
-                    onPress={() => setFilial(item)}
-                    disabled={!!userContext?.branchName} // Desabilita mudança se já tem filial definida
-                  >
-                    <View style={[
-                      styles.branchItem,
-                      { width: `${branchIndicatorWidth}%` }
-                    ]}>
-                      <Text style={[
-                        styles.segmentText,
-                        filial === item && styles.segmentTextActive
-                      ]}>
-                        {item}
-                      </Text>
-                    </View>
-                  </TouchableWithoutFeedback>
-                ))}
-              </View>
-            </View>
-
-            {/* VALOR */}
-            <Text style={[styles.label, { marginTop: 20 }]}>Valor (R$)</Text>
-            <View style={styles.inputRow}>
-              <Text style={styles.currency}>R$</Text>
-              <TextInput
-                keyboardType="decimal-pad"
-                placeholder="0.00"
-                style={styles.input}
-                value={valor}
-                onChangeText={(t) => {
-                  // Permite apenas números, ponto e vírgula
-                  const cleaned = t.replace(/[^0-9,.]/g, '');
-                  // Substitui vírgula por ponto para cálculo
-                  const formatted = cleaned.replace(',', '.');
-                  setValor(formatted);
-                }}
-                returnKeyType="done"
-                placeholderTextColor="#999"
-              />
-            </View>
-
-            {/* BOTÃO PRINCIPAL */}
+        {/* Card Principal */}
+        <View style={styles.card}>
+          {/* Seletor de Tipo */}
+          <Text style={styles.label}>Selecione o Tipo:</Text>
+          <View style={styles.optionContainer}>
             <TouchableOpacity
               style={[
-                styles.primaryButton,
-                botaoModo === "copiar" && { backgroundColor: "#0A68FF" },
-                copiado && { backgroundColor: "#10B981" },
+                styles.optionButton,
+                tipo === "Dízimo" && styles.optionButtonActive
               ]}
-              onPress={botaoPress}
-              activeOpacity={0.8}
-              disabled={!valor && botaoModo === "gerar"}
+              onPress={() => setTipo("Dízimo")}
+              activeOpacity={0.7}
             >
-              <Animated.View 
-                style={[
-                  styles.buttonContent,
-                  copiado && {
-                    transform: [{ scale: successScale }],
-                    opacity: successOpacity
-                  }
-                ]}
-              >
-                <Text style={styles.primaryButtonText}>
-                  {botaoModo === "gerar" 
-                    ? "📱 GERAR PIX" 
-                    : copiado 
-                    ? "✅ COPIA REALIZADA!" 
-                    : "📋 COPIAR CÓDIGO PIX"}
-                </Text>
-              </Animated.View>
+              <Text style={[
+                styles.optionText,
+                tipo === "Dízimo" && styles.optionTextActive
+              ]}>
+                Dízimo
+              </Text>
             </TouchableOpacity>
 
-            {payloadGerado && !copiado && (
+            <TouchableOpacity
+              style={[
+                styles.optionButton,
+                tipo === "Oferta" && styles.optionButtonActive
+              ]}
+              onPress={() => setTipo("Oferta")}
+              activeOpacity={0.7}
+            >
+              <Text style={[
+                styles.optionText,
+                tipo === "Oferta" && styles.optionTextActive
+              ]}>
+                Oferta
+              </Text>
+            </TouchableOpacity>
+          </View>
+
+          {/* Campo de Valor */}
+          <Text style={[styles.label, { marginTop: height * 0.03 }]}>Valor (R$):</Text>
+          <View style={styles.inputContainer}>
+            <Text style={styles.currencySymbol}>R$</Text>
+            <TextInput
+              style={styles.valorInput}
+              placeholder="0,00"
+              placeholderTextColor="#999"
+              keyboardType="decimal-pad"
+              value={valor}
+              onChangeText={(text) => {
+                const cleaned = text.replace(/[^0-9,.]/g, '');
+                setValor(cleaned);
+              }}
+              returnKeyType="done"
+              editable={!qrGenerated}
+            />
+          </View>
+
+          {/* Campo de Descrição (Opcional) */}
+          <Text style={[styles.label, { marginTop: height * 0.02 }]}>Descrição (Opcional):</Text>
+          <TextInput
+            style={styles.descricaoInput}
+            placeholder="Ex: Oferta de gratidão, Campanha especial..."
+            placeholderTextColor="#999"
+            value={descricao}
+            onChangeText={setDescricao}
+            multiline
+            maxLength={100}
+            editable={!qrGenerated}
+          />
+
+          {/* QR Code Gerado */}
+          {qrGenerated && qrCodeUrl && (
+            <View style={styles.qrCodeContainer}>
+              <Text style={styles.qrCodeTitle}>📱 QR Code Gerado</Text>
+              
+              <View style={styles.qrCodeBox}>
+                <QRCode
+                  value={pixPayload || qrCodeUrl}
+                  size={width * 0.5}
+                  color="#000000"
+                  backgroundColor="#FFFFFF"
+                  logo={require('../img/meta.webp')} // Adicione seu logo
+                  logoSize={40}
+                  logoBackgroundColor="transparent"
+                />
+                
+                <Text style={styles.qrCodeValue}>
+                  R$ {parseFloat(valor).toFixed(2)}
+                </Text>
+                <Text style={styles.qrCodeType}>{tipo}</Text>
+              </View>
+              
               <TouchableOpacity
-                style={styles.secondaryButton}
-                onPress={resetarPIX}
+                style={[styles.actionButton, styles.copyButton]}
+                onPress={copiarCodigo}
+                activeOpacity={0.8}
               >
-                <Text style={styles.secondaryButtonText}>↻ Gerar Novo PIX</Text>
+                <Text style={styles.copyButtonText}>
+                  📋 COPIAR CÓDIGO PIX
+                </Text>
+              </TouchableOpacity>
+            </View>
+          )}
+
+          {/* Botões de Ação */}
+          <View style={styles.buttonsContainer}>
+            {!qrGenerated ? (
+              <>
+                <TouchableOpacity
+                  style={[styles.actionButton, styles.primaryButton]}
+                  onPress={gerarQRCode}
+                  activeOpacity={0.8}
+                  disabled={loading}
+                >
+                  <Text style={styles.primaryButtonText}>
+                    {loading ? "⏳ GERANDO..." : "📱 GERAR QR CODE"}
+                  </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[styles.actionButton, styles.secondaryButton]}
+                  onPress={limparCampos}
+                  activeOpacity={0.8}
+                >
+                  <Text style={styles.secondaryButtonText}>
+                    🔄 LIMPAR
+                  </Text>
+                </TouchableOpacity>
+              </>
+            ) : (
+              <TouchableOpacity
+                style={[styles.actionButton, styles.newButton]}
+                onPress={limparCampos}
+                activeOpacity={0.8}
+              >
+                <Text style={styles.newButtonText}>
+                  ✨ NOVA CONTRIBUIÇÃO
+                </Text>
               </TouchableOpacity>
             )}
-
-            {/* QR CODE */}
-            {payloadGerado ? (
-              <Animated.View style={[styles.qrWrap, qrStyle]}>
-                <View style={styles.qrContainer}>
-                  <View style={styles.qrCard}>
-                    <QRCode 
-                      value={payloadGerado} 
-                      size={180} 
-                      color="#000"
-                      backgroundColor="#FFF"
-                    />
-                  </View>
-                  
-                  <Text style={styles.qrInstruction}>
-                    📱 Leia com o app do seu banco
-                  </Text>
-                  
-                  <View style={styles.compatibilityInfo}>
-                    <Text style={styles.compatibilityText}>
-                      ✅ Compatível com: Nubank, Itaú, Santander, Bradesco, Caixa, BB
-                    </Text>
-                  </View>
-                </View>
-              </Animated.View>
-            ) : (
-              <View style={styles.emptyState}>
-                <Text style={styles.emptyText}>
-                  ⬆️ Digite um valor e clique em "GERAR PIX"
-                </Text>
-                <Text style={styles.emptySubtext}>
-                  O código será gerado para copiar e colar no seu banco
-                </Text>
-              </View>
-            )}
-
-            {/* INSTRUÇÕES */}
-            <View style={styles.instructionsCard}>
-              <Text style={styles.instructionsTitle}>📋 Como Pagar no Nubank:</Text>
-              <View style={styles.instructionStep}>
-                <Text style={styles.instructionNumber}>1.</Text>
-                <Text style={styles.instructionText}>Abra o app do Nubank</Text>
-              </View>
-              <View style={styles.instructionStep}>
-                <Text style={styles.instructionNumber}>2.</Text>
-                <Text style={styles.instructionText}>Toque em "Pix"</Text>
-              </View>
-              <View style={styles.instructionStep}>
-                <Text style={styles.instructionNumber}>3.</Text>
-                <Text style={styles.instructionText}>Selecione "Pagar com Pix"</Text>
-              </View>
-              <View style={styles.instructionStep}>
-                <Text style={styles.instructionNumber}>4.</Text>
-                <Text style={styles.instructionText}>Escolha "Pix Copia e Cola"</Text>
-              </View>
-              <View style={styles.instructionStep}>
-                <Text style={styles.instructionNumber}>5.</Text>
-                <Text style={styles.instructionText}>Cole o código copiado</Text>
-              </View>
-            </View>
           </View>
-        </ScrollView>
-      </KeyboardAvoidingView>
-    </SafeAreaView>
+
+          {/* Informações Adicionais */}
+          <View style={styles.infoBox}>
+            <Text style={styles.infoTitle}>💡 Como funciona:</Text>
+            <Text style={styles.infoText}>
+              1. Selecione o tipo e valor{"\n"}
+              2. Gere o QR Code PIX{"\n"}
+              3. Copie o código ou escaneie o QR{"\n"}
+              4. Pague no app do seu banco{"\n"}
+              5. A contribuição é registrada automaticamente
+            </Text>
+          </View>
+        </View>
+
+        {/* Verso Bíblico */}
+        <View style={styles.verseContainer}>
+          <Text style={styles.verseText}>
+            "Cada um dê conforme determinou em seu coração, não com pesar ou por obrigação, pois Deus ama quem dá com alegria."
+          </Text>
+          <Text style={styles.verseReference}>2 Coríntios 9:7</Text>
+        </View>
+      </ScrollView>
+    </KeyboardAvoidingView>
   );
 }
 
-/* =======================
-   ESTILOS
-   ======================= */
 const styles = StyleSheet.create({
-  safe: {
+  container: {
     flex: 1,
-    backgroundColor: "#F5F6FA",
+    width: width,
+    backgroundColor: "#F8F9FA",
   },
-  scroll: {
-    paddingHorizontal: 16,
-    paddingBottom: 30,
-    minHeight: "100%",
+  scrollContent: {
+    flexGrow: 1,
+    alignItems: "center",
+    paddingBottom: height * 0.05,
   },
   header: {
+    width: width,
+    paddingVertical: height * 0.03,
+    backgroundColor: "#2b2b2b",
     alignItems: "center",
-    paddingVertical: 20,
+    marginBottom: height * 0.02,
   },
-  appTitle: {
-    fontSize: 28,
-    fontWeight: "800",
-    color: "#111",
-    marginBottom: 6,
-  },
-  appSubtitle: {
-    fontSize: 15,
-    color: "#666",
+  title: {
+    fontSize: width * 0.07,
+    fontWeight: "bold",
+    color: "#FFFFFF",
     textAlign: "center",
-    lineHeight: 20,
+  },
+  subtitle: {
+    fontSize: width * 0.04,
+    color: "rgba(255,255,255,0.9)",
+    marginTop: 5,
+    textAlign: "center",
+  },
+  pixInfoContainer: {
+    marginTop: height * 0.02,
+    padding: width * 0.03,
+    backgroundColor: "rgba(255,255,255,0.1)",
+    borderRadius: 8,
+    alignItems: "center",
+  },
+  pixInfoText: {
+    fontSize: width * 0.035,
+    color: "#FFFFFF",
+    fontWeight: "500",
+  },
+  pixInfoSubtext: {
+    fontSize: width * 0.03,
+    color: "rgba(255,255,255,0.8)",
+    marginTop: 2,
   },
   card: {
-    backgroundColor: "#FFF",
-    padding: 22,
-    borderRadius: 20,
-    marginBottom: 25,
-    ...Platform.select({
-      ios: {
-        shadowColor: "#000",
-        shadowOpacity: 0.08,
-        shadowRadius: 16,
-        shadowOffset: { width: 0, height: 8 },
-      },
-      android: { 
-        elevation: 8,
-        shadowColor: "#000",
-      },
-    }),
+    width: width * 0.95,
+    backgroundColor: "#FFFFFF",
+    borderRadius: 16,
+    padding: width * 0.05,
+    marginVertical: height * 0.02,
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 5,
   },
   label: {
-    fontSize: 16,
-    fontWeight: "700",
-    color: "#333",
-    marginBottom: 10,
-    letterSpacing: -0.3,
+    fontSize: width * 0.045,
+    fontWeight: "600",
+    color: "#333333",
+    marginBottom: height * 0.01,
   },
-  /* tipo */
-  segmentWrap: {
-    backgroundColor: "#F0F2F5",
-    padding: 6,
-    borderRadius: 14,
-    alignItems: "center",
-  },
-  segmentRow: {
-    width: 240,
-    height: 50,
-    flexDirection: "row",
-    alignItems: "center",
-    borderRadius: 12,
-    overflow: "hidden",
-    justifyContent: "center",
-  },
-  segmentItem: {
-    width: 120,
-    alignItems: "center",
-    justifyContent: "center",
-    zIndex: 2,
-    paddingVertical: 8,
-  },
-  segmentIndicator: {
-    position: "absolute",
-    width: 120,
-    height: 42,
-    backgroundColor: "#a0a0a0ff",
-    borderRadius: 12,
-    top: 4,
-    left: 0,
-    zIndex: 1,
-  },
-  /* filial */
-  segmentRowFilial: {
+  optionContainer: {
     width: "100%",
-    height: 50,
+    height: height * 0.08,
     flexDirection: "row",
-    alignItems: "center",
+    backgroundColor: "#F1F3F5",
     borderRadius: 12,
     overflow: "hidden",
-    justifyContent: "space-between",
+    marginBottom: height * 0.02,
   },
-  branchItem: {
-    alignItems: "center",
+  optionButton: {
+    flex: 1,
     justifyContent: "center",
-    zIndex: 2,
-    paddingVertical: 8,
+    alignItems: "center",
   },
-  branchIndicator: {
-    position: "absolute",
-    height: 42,
-    backgroundColor: "#0A68FF",
-    borderRadius: 12,
-    top: 4,
-    zIndex: 1,
+  optionButtonActive: {
+    backgroundColor: "#000000",
   },
-  segmentText: {
-    fontSize: 16,
-    color: "#444",
+  optionText: {
+    fontSize: width * 0.045,
+    fontWeight: "500",
+    color: "#666666",
+  },
+  optionTextActive: {
+    color: "#FFFFFF",
     fontWeight: "600",
-    letterSpacing: -0.3,
   },
-  segmentTextActive: {
-    color: "#000000ff",
-    fontWeight: "700",
-  },
-  inputRow: {
+  inputContainer: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#FFF",
-    borderWidth: 2,
-    borderColor: "#E8EAED",
-    borderRadius: 14,
-    paddingHorizontal: 16,
-    height: 58,
+    backgroundColor: "#F8F9FA",
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: "#E9ECEF",
+    paddingHorizontal: width * 0.04,
+    height: height * 0.07,
   },
-  currency: { 
-    fontWeight: "700", 
-    marginRight: 8, 
-    fontSize: 20,
-    color: "#111",
-  },
-  input: { 
-    flex: 1, 
-    fontSize: 22,
+  currencySymbol: {
+    fontSize: width * 0.06,
     fontWeight: "600",
-    color: "#111",
-    paddingVertical: 8,
+    color: "#000000",
+    marginRight: width * 0.02,
+  },
+  valorInput: {
+    flex: 1,
+    fontSize: width * 0.06,
+    fontWeight: "600",
+    color: "#333333",
+    paddingVertical: height * 0.01,
+  },
+  descricaoInput: {
+    backgroundColor: "#F8F9FA",
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: "#E9ECEF",
+    paddingHorizontal: width * 0.04,
+    paddingVertical: height * 0.015,
+    fontSize: width * 0.04,
+    color: "#333333",
+    minHeight: height * 0.08,
+    textAlignVertical: "top",
+  },
+  qrCodeContainer: {
+    marginTop: height * 0.04,
+    alignItems: "center",
+  },
+  qrCodeTitle: {
+    fontSize: width * 0.045,
+    fontWeight: "bold",
+    color: "#333333",
+    marginBottom: height * 0.02,
+  },
+  qrCodeBox: {
+    alignItems: "center",
+    padding: width * 0.05,
+    backgroundColor: "#FFFFFF",
+    borderRadius: 16,
+    borderWidth: 2,
+    borderColor: "#000000",
+    marginBottom: height * 0.02,
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 5,
+  },
+  qrCodeValue: {
+    fontSize: width * 0.06,
+    fontWeight: "bold",
+    color: "#000000",
+    marginTop: height * 0.02,
+  },
+  qrCodeType: {
+    fontSize: width * 0.04,
+    color: "#666666",
+    marginTop: height * 0.01,
+  },
+  buttonsContainer: {
+    marginTop: height * 0.04,
+    gap: height * 0.015,
+  },
+  actionButton: {
+    width: "100%",
+    height: height * 0.07,
+    borderRadius: 12,
+    justifyContent: "center",
+    alignItems: "center",
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
   },
   primaryButton: {
-    backgroundColor: "#111",
-    paddingVertical: 18,
-    borderRadius: 14,
-    marginTop: 24,
-    alignItems: "center",
-    overflow: "hidden",
-  },
-  buttonContent: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
+    backgroundColor: "#000000",
   },
   primaryButtonText: {
-    color: "#FFF",
-    fontSize: 17,
-    fontWeight: "700",
-    letterSpacing: -0.3,
+    fontSize: width * 0.045,
+    fontWeight: "bold",
+    color: "#FFFFFF",
   },
   secondaryButton: {
-    backgroundColor: "transparent",
-    paddingVertical: 14,
-    borderRadius: 12,
-    marginTop: 12,
-    alignItems: "center",
-    borderWidth: 1.5,
-    borderColor: "#E8EAED",
+    backgroundColor: "#FFFFFF",
+    borderWidth: 2,
+    borderColor: "#2D5A8C",
   },
   secondaryButtonText: {
-    color: "#666",
-    fontSize: 15,
+    fontSize: width * 0.04,
     fontWeight: "600",
+    color: "#2D5A8C",
   },
-  qrWrap: {
-    marginTop: 30,
-    alignItems: "center",
+  copyButton: {
+    backgroundColor: "#10B981",
+    marginTop: height * 0.01,
   },
-  qrContainer: {
-    alignItems: "center",
-    width: "100%",
+  copyButtonText: {
+    fontSize: width * 0.04,
+    fontWeight: "bold",
+    color: "#FFFFFF",
   },
-  qrCard: {
-    padding: 20,
-    backgroundColor: "#FFF",
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: "#E8EAED",
-    ...Platform.select({
-      ios: {
-        shadowColor: "#000",
-        shadowOpacity: 0.08,
-        shadowRadius: 12,
-        shadowOffset: { width: 0, height: 4 },
-      },
-      android: { 
-        elevation: 6,
-        shadowColor: "#000",
-      },
-    }),
+  newButton: {
+    backgroundColor: "#3B82F6",
   },
-  qrInstruction: {
-    marginTop: 16,
-    fontSize: 16,
-    fontWeight: "600",
-    color: "#333",
-    textAlign: "center",
+  newButtonText: {
+    fontSize: width * 0.045,
+    fontWeight: "bold",
+    color: "#FFFFFF",
   },
-  compatibilityInfo: {
-    marginTop: 12,
-    backgroundColor: "#F0F9FF",
-    paddingHorizontal: 16,
-    paddingVertical: 10,
+  infoBox: {
+    marginTop: height * 0.04,
+    padding: width * 0.04,
+    backgroundColor: "#F0F7FF",
     borderRadius: 12,
-    borderWidth: 1,
-    borderColor: "#BAE6FD",
+    borderLeftWidth: 4,
+    borderLeftColor: "#000000",
   },
-  compatibilityText: {
-    fontSize: 14,
-    color: "#0369A1",
-    fontWeight: "600",
-    textAlign: "center",
+  infoTitle: {
+    fontSize: width * 0.04,
+    fontWeight: "bold",
+    color: "#000000",
+    marginBottom: height * 0.01,
   },
-  emptyState: {
-    marginTop: 30,
+  infoText: {
+    fontSize: width * 0.035,
+    color: "#555555",
+    lineHeight: height * 0.025,
+  },
+  verseContainer: {
+    width: width * 0.95,
+    marginTop: height * 0.03,
+    padding: width * 0.05,
+    backgroundColor: "#FFFFFF",
+    borderRadius: 12,
     alignItems: "center",
-    padding: 20,
-    backgroundColor: "#F8FAFC",
-    borderRadius: 16,
-    borderWidth: 2,
-    borderColor: "#E2E8F0",
-    borderStyle: "dashed",
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 1,
+    },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
   },
-  emptyText: {
-    fontSize: 16,
+  verseText: {
+    fontSize: width * 0.04,
+    color: "#444444",
+    fontStyle: "italic",
+    textAlign: "center",
+    lineHeight: height * 0.025,
+    marginBottom: height * 0.01,
+  },
+  verseReference: {
+    fontSize: width * 0.035,
     fontWeight: "600",
-    color: "#475569",
+    color: "#000000",
     textAlign: "center",
-    marginBottom: 6,
-  },
-  emptySubtext: {
-    fontSize: 14,
-    color: "#64748B",
-    textAlign: "center",
-    lineHeight: 20,
-  },
-  instructionsCard: {
-    marginTop: 32,
-    backgroundColor: "#F8FAFC",
-    padding: 20,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: "#E2E8F0",
-  },
-  instructionsTitle: {
-    fontSize: 18,
-    fontWeight: "700",
-    color: "#1E293B",
-    marginBottom: 16,
-  },
-  instructionStep: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    marginBottom: 12,
-  },
-  instructionNumber: {
-    fontSize: 15,
-    fontWeight: "700",
-    color: "#0A68FF",
-    marginRight: 12,
-    minWidth: 20,
-  },
-  instructionText: {
-    fontSize: 15,
-    color: "#334155",
-    lineHeight: 22,
-    flex: 1,
   },
 });

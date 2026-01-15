@@ -6,14 +6,13 @@ import FontAwesome from '@expo/vector-icons/FontAwesome';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import * as ImagePicker from 'expo-image-picker';
 import { useRouter } from "expo-router";
-import { collection, doc, getDoc, updateDoc, } from "firebase/firestore";
+import { doc, getDoc, updateDoc } from "firebase/firestore";
 import { getDownloadURL, getStorage, ref, uploadBytes } from "firebase/storage";
 import { useContext, useEffect, useState } from "react";
 import { Alert, Dimensions, Image, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
 import { MaskedTextInput } from "react-native-mask-text";
 import { db } from "../../src/Data/FirebaseConfig";
 import { AppContext } from "../../src/Data/contextApi";
-import { getItem } from "../../src/Data/storage";
 
 const { width, height } = Dimensions.get("window");
 
@@ -48,7 +47,7 @@ export default function Config() {
       const dataSnapp = await getDoc(querySnapshot);
 
       if (!dataSnapp.exists()) {
-        console.log('Usuário encontrado no useEffect do config');
+        console.log('Usuário nao encontrado');
         
         return;}
 
@@ -139,23 +138,23 @@ export default function Config() {
     if (!edit) {
       setEdit(true);
     } else {
-      const userData = await getItem('user');
-      const { emailInput } = JSON.parse(userData);
-      const querySnapshot = await getDocs(collection(db, 'users'));
+     
+      
+      const query =  doc(db, 'users', userId);
+      const querySnapshot =  await getDoc(query);
 
-      querySnapshot.forEach(async (snapshot) => {
-        if (snapshot.data().email.toLowerCase() === emailInput.toLowerCase()) {
-          await updateDoc(doc(db, 'users', snapshot.id), {
+     
+          await updateDoc(doc(db, 'users', userId), {
             name: nome,
-            nascimento: dataNascimento,
+            birthDate: dataNascimento,
             phone: celular,
             tsg: tsg,
             atribuicao: atribuicao
           });
-        }
-      });
+     
       Alert.alert('Sucesso', 'Dados atualizados com sucesso!');
       setEdit(false);
+    
     }
   }
 

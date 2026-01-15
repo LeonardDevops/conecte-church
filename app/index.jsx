@@ -1,5 +1,3 @@
-import Entypo from '@expo/vector-icons/Entypo';
-import FontAwesome5 from '@expo/vector-icons/FontAwesome5';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { Picker } from "@react-native-picker/picker";
 import { Link, useRouter } from "expo-router";
@@ -24,65 +22,76 @@ export default function Login() {
   const [selectedValue, setSelectedValue] = useState();
   const [emailInput, setEmailInput] = useState('');
   const [passwordInput, setPasswordInput] = useState('');
-  const [user , setUser] = useState();
+  const [objectBranchesData , setObjectBranchesData] = useState([]);
   const [branchesData , setBranchesData] = useState(["Selecione"]);
+  const [pixConfigData , setPixConfigData] = useState(null);
   
   let isFilial = "selecione uma filial";
   
   const router = useRouter()
   
-
- useEffect(()=> {
+  
+  useEffect(()=> {
     
-  const  getChurchData = async () => {
-    
+    const  getChurchData = async () => {
+      
       try {
-        
-        
-        
-        const queryBranc = query(collection(db, "branches"),where("status", "==", "active"));
-        
+        const queryBranc = query(collection(db, "branches"),where("status", "==", "active"));  
         const dataBranch = (await getDocs(queryBranc));
-        
-       
+      
         let nameBranches = []
-
         let objectBranches = []
-
+        
         dataBranch.forEach((item)=> {
                  
+                nameBranches.push(item.data().name);
 
-           nameBranches.push(item.data().name);
-
-            objectBranches.push({
-            id:item.id,
-            name:item.data().name
-
-           })     
-      
+                 objectBranches.push({
+                  id:item.id,
+                  name:item.data().name,
+                  pixConfig:item.data().pixConfig
+                
+                })     
+                console.log('testando se to pegando a iformacao ',objectBranches)
         })
-          setBranchesData([...branchesData, ...nameBranches]);
-          
         
+          setBranchesData([...branchesData,... nameBranches]);
+          setObjectBranchesData(objectBranches);
+
+          console.log('adicionado na useState', objectBranchesData);
       } catch (error) {
         
         console.log('erro ao buscar dados da igreja', error);
       }
+
     }
-
     getChurchData();
-   
     console.log(selectedValue)
-    
-
  },[]);
+
+  
+useEffect(() => {
+  console.log(userContext);
+}, [userContext]);
+
+    
+  useEffect(() => {
+  if (!selectedValue || selectedValue === "Selecione") return;
+
+  const branch = objectBranchesData.find(
+    item => item.name === selectedValue
+  );
+
+  if (branch) {
+    setPixConfigData(branch.pixConfig);
+  }
+}, [selectedValue, objectBranchesData]);
+
 
 
  async function handleLogin() {
 
-  if (!emailInput || !passwordInput && !isFilial) return alert("Necessario Prencher todos os Campos e Selecionar a Filial")
-
-       
+  if (!emailInput || !passwordInput || selectedValue === "Selecione") return alert("Necessario Prencher todos os Campos e Selecionar a Filial")
       try {
         
            const queryUsers = query(collection(db, "users"), where("status", "==", "active"),
@@ -92,7 +101,6 @@ export default function Login() {
           );
            
 
-
            const dataUser = (await getDocs(queryUsers)) ;
           
            if (dataUser.empty) {
@@ -101,7 +109,7 @@ export default function Login() {
             return;
            }
 
-          await dataUser.forEach((item)=> {
+            dataUser.forEach((item)=> {
 
             setUserContext(
                { 
@@ -109,13 +117,19 @@ export default function Login() {
                 email: item.data().email,
                 branchName: item.data().branchName,
                 isLogged: true,
-                branchId : item.data().branchId, 
+                branchId : item.data().branchId,
+                pixConfig:pixConfigData
+                
               }
             ); 
             
             console.log("dados do usuario setados no context", userContext)
             
           })
+
+
+
+
           
                 alert("Login realizado com sucesso!");
           
@@ -162,11 +176,9 @@ export default function Login() {
       source={require("./img/meta.webp")} />
       
       <Text style={style.text}>Ministério Evangelistico Tálamo</Text>
-      <Entypo style={style.iconemail} name="email" size={24} color="black" />
       <TextInput
       onChangeText={(e)=> setEmailInput(e.trim().toLowerCase())}
       style={style.input} />
-      <FontAwesome5 style={style.lock} name="lock" size={24} color="black" />
       <TextInput
       secureTextEntry
         onChangeText={(e)=> setPasswordInput(e.trim())}
@@ -248,7 +260,7 @@ const style = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     paddingHorizontal: 20,
-    backgroundColor: "#fff",
+    backgroundColor: "#ebeaea",
   },
 
   logo: {
@@ -283,7 +295,7 @@ const style = StyleSheet.create({
     fontWeight: "600",
     fontSize: 18,
     color: "#1a1a1aff",
-    backgroundColor: "#cacaca23",
+    backgroundColor: "#f5f5f5",
     borderRadius: 8,
     marginTop: 10,
   },
