@@ -59,8 +59,7 @@
     "react-native-ui-kitten": "^4.4.1",
     "react-native-web": "~0.21.0",
     "react-native-worklets": "0.5.1",
-    "toastify-react-native": "^7.2.3",
-    "undefined": "\\"
+    "toastify-react-native": "^7.2.3"
   },
   "devDependencies": {
     "@types/react": "~19.1.0",
@@ -68,6 +67,5 @@
     "eslint-config-expo": "~10.0.0",
     "patch-package": "^8.0.1",
     "typescript": "~5.9.2"
-  },
-  "private": true
+  }
 }
