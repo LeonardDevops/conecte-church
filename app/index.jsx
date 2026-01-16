@@ -177,9 +177,13 @@ useEffect(() => {
       
       <Text style={style.text}>Ministério Evangelistico Tálamo</Text>
       <TextInput
+      placeholder='Email'
+      placeholderTextColor={"#727272"}
       onChangeText={(e)=> setEmailInput(e.trim().toLowerCase())}
       style={style.input} />
       <TextInput
+      placeholder='Senha'
+      placeholderTextColor={"#727272"}
       secureTextEntry
         onChangeText={(e)=> setPasswordInput(e.trim())}
       style={style.input} />
@@ -291,7 +295,7 @@ const style = StyleSheet.create({
     borderColor: "#000",
     borderWidth: 1,
     marginBottom: 36,
-    textAlign: "center",
+    textAlign: "left",
     fontWeight: "600",
     fontSize: 18,
     color: "#1a1a1aff",

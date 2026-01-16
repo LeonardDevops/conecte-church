@@ -28,7 +28,7 @@ export const AppProvider = ({ children }) => {
         };
       });
 
-      setUserContext((prev) => ({ ...prev, churches: branchesFormatted }));
+      setUserContext((prev) => ({ ...prev, branches: branchesFormatted }));
       console.log("carregarDados: branchesFormatted:", branchesFormatted);
       
     } catch (error) {

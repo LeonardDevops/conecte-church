@@ -22,7 +22,7 @@ export default function Home() {
 
   useEffect(() => {
 
-     console.log("userContext no home", userContext)  
+     console.log("userContext no home", userContext.id)  
     const loadImages = async () => {
       try {
 

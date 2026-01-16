@@ -15,7 +15,7 @@ import {
 } from "react-native";
 import QRCode from "react-native-qrcode-svg";
 import { AppContext } from "../../src/Data/contextApi";
-import { db } from "../../src/Data/FirebaseConfig"; // Importe sua configuração do Firebase
+import { db } from "../../src/Data/FirebaseConfig"; // Importe sua configuração do Firebases
 
 const { width, height } = Dimensions.get("window");
 

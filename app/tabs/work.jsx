@@ -40,10 +40,26 @@ export default function Work() {
       return;
     }
 
-  
+        if (!userContext?.id) {
+  Toast.show({
+    type: 'error',
+    text1: 'Usuário não encontrado!',
+    text1Style: {
+      fontSize: height * 0.018,
+      fontWeight: 'bold',
+      color: '#fff',
+    }
+  });
+  return;
+}
  
 
     await addDoc(collection(db, "tasks"), {
+
+
+
+
+
       evento: evento.trim(),
       idUser: userContext.id,
       idTaskOption: selectedGroupId,
