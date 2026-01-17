@@ -70,6 +70,18 @@ export default function RootLayout() {
             title: "",
           }}
           />
+        <Stack.Screen
+          name="IntroAfterLogin"
+          options={{
+            headerTitle: "IntroAfterLogin",
+            headerShown: false,
+            statusBarStyle: "light",
+            headerStyle: { backgroundColor: "#000000ff" },
+            headerTintColor: "#fff",
+            headerTitleStyle: { fontWeight: "bold" },
+            title: "",
+          }}
+          />
 
         <Stack.Screen
           name="tabs"

@@ -41,10 +41,11 @@ export default function Menu() {
           </TouchableOpacity>
 
             <TouchableOpacity style={styles.buttonDisable}
-            
+            onPress={goCard}
             >
           <FontAwesome name="id-card" size={24} color="rgb(214, 213, 213)" />
             <Text style={styles.text}>Carteirinha</Text>
+            
             </TouchableOpacity>
           
             <TouchableOpacity style={styles.buttonDisable}>

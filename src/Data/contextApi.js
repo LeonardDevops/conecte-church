@@ -10,11 +10,12 @@ export const AppProvider = ({ children }) => {
     email: null,
     churches: [],
     isLogged: false,
+    pixConfig:[]
   });
 
   async function carregarDados() {
     try {
-      console.log("carregarDados: buscando filiais..., Do contexto das igrejas" );
+     
       const querySnapshot = await getDocs(collection(db, "branches"));
 
       const branchesFormatted = querySnapshot.docs.map((doc) => {
@@ -28,8 +29,7 @@ export const AppProvider = ({ children }) => {
         };
       });
 
-      setUserContext((prev) => ({ ...prev, branches: branchesFormatted }));
-      console.log("carregarDados: branchesFormatted:", branchesFormatted);
+      setUserContext((prev) => ({ ...prev, branches: branchesFormatted , pixConfig:userContext.pixConfig }))
       
     } catch (error) {
       console.error("Erro ao carregar dados das branches:", error);

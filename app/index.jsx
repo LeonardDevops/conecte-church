@@ -1,12 +1,13 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { Picker } from "@react-native-picker/picker";
 import { Link, useRouter } from "expo-router";
+import { signInWithEmailAndPassword } from "firebase/auth";
 import { collection, getDocs, query, where } from "firebase/firestore";
 import { useContext, useEffect, useState } from 'react';
 import { Dimensions, Image, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
 import Toast from 'react-native-toast-message';
 import { AppContext } from "../src/Data/contextApi";
-import { db } from "../src/Data/FirebaseConfig";
+import { auth, db } from "../src/Data/FirebaseConfig";
 
 
 
@@ -25,7 +26,9 @@ export default function Login() {
   const [objectBranchesData , setObjectBranchesData] = useState([]);
   const [branchesData , setBranchesData] = useState(["Selecione"]);
   const [pixConfigData , setPixConfigData] = useState(null);
-  
+
+  const [pr , setPr] = useState(null);
+
   let isFilial = "selecione uma filial";
   
   const router = useRouter()
@@ -41,24 +44,34 @@ export default function Login() {
       
         let nameBranches = []
         let objectBranches = []
-        
+        let branchPr = []
         dataBranch.forEach((item)=> {
                  
                 nameBranches.push(item.data().name);
-
+                branchPr.push(item.data().pastor)
                  objectBranches.push({
                   id:item.id,
                   name:item.data().name,
                   pixConfig:item.data().pixConfig
                 
                 })     
-                console.log('testando se to pegando a iformacao ',objectBranches)
-        })
-        
+
+                setUserContext(userContext,...nameBranches)
+              })
+
+              branchPr.forEach((item)=> {
+
+                setPr(item)
+
+              })
+
+
+              console.log('testando se to pegando a iformacao ',objectBranches)
+              console.log("PASTORES", branchPr)
           setBranchesData([...branchesData,... nameBranches]);
           setObjectBranchesData(objectBranches);
-
-          console.log('adicionado na useState', objectBranchesData);
+          setUserContext({churches:[nameBranches]});
+          // console.log('adicionado na useState', objectBranchesData);
       } catch (error) {
         
         console.log('erro ao buscar dados da igreja', error);
@@ -70,9 +83,9 @@ export default function Login() {
  },[]);
 
   
-useEffect(() => {
-  console.log(userContext);
-}, [userContext]);
+// useEffect(() => {
+//   console.log(userContext,"CONSUMINDO OS DADOS DO CONTEXTO ========================================================================================");
+// }, [userContext]);
 
     
   useEffect(() => {
@@ -93,52 +106,62 @@ useEffect(() => {
 
   if (!emailInput || !passwordInput || selectedValue === "Selecione") return alert("Necessario Prencher todos os Campos e Selecionar a Filial")
       try {
-        
-           const queryUsers = query(collection(db, "users"), where("status", "==", "active"),
+
+          const validateUser = signInWithEmailAndPassword(auth, emailInput.toLowerCase() , passwordInput )
+          .then(async ()=> {
+
+            
+            
+            const queryUsers = query(collection(db, "users"), where("status", "==", "active"),
             where("email", "==", emailInput.toLowerCase()),
-            where("password", "==", passwordInput.toLowerCase()),
             where("branchName", "==", selectedValue)
           );
-           
-
-           const dataUser = (await getDocs(queryUsers)) ;
           
-           if (dataUser.empty) {
+          
+          const dataUser = (await getDocs(queryUsers)) ;
+          
+          if (dataUser.empty) {
             alert("usuario nao encontrado, verifique os dados e tente novamente!");
-
+            
             return;
-           }
-
-            dataUser.forEach((item)=> {
-
+          }
+          
+          dataUser.forEach((item)=> {
+            
             setUserContext(
-               { 
+              { 
                 id: item.id,
                 email: item.data().email,
+                name:item.data().name,
+                tsg:item?.data().tsg || null,
+                phone:item?.data().phone,
+                birthDate:item.data().birthDate,
+                atribuicao:item.data().atribuicao || null,
                 branchName: item.data().branchName,
-                isLogged: true,
+                isLogged: false,
                 branchId : item.data().branchId,
-                pixConfig:pixConfigData
+                pixConfig:pixConfigData,
+                pr:pr.pastor
                 
               }
             ); 
             
             console.log("dados do usuario setados no context", userContext)
+            // console.log(userContext,"testando")
             
           })
-
-
-
-
           
-                alert("Login realizado com sucesso!");
+          //  console.log("Testando o contexto", userContext)
           
-               
-                 setTimeout(()=> {
-                router.push("/tabs/home");
-              
-              },100);
           
+          setTimeout(()=> {
+            router.push("/IntroAfterLogin");
+            
+          },60);
+          
+        }).catch(()=> {
+          
+        })
             
        
 

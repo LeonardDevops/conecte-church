@@ -14,8 +14,9 @@ import {
 import { MaskedTextInput } from "react-native-mask-text";
 import { AppContext } from "../src/Data/contextApi";
 
-import { addDoc, collection, serverTimestamp } from "firebase/firestore";
-import { db } from "../src/Data/FirebaseConfig";
+import { createUserWithEmailAndPassword } from "firebase/auth";
+import { doc, serverTimestamp, setDoc } from "firebase/firestore";
+import { auth, db } from "../src/Data/FirebaseConfig";
 
 const { width, height } = Dimensions.get("window");
 
@@ -32,13 +33,23 @@ export default function Cadastro() {
   const [password, setPassword] = useState("");
   const [nascimento, setNascimento] = useState("");
   const [selectedBranchId, setSelectedBranchId] = useState("");
+  
 
   // ✅ CORREÇÃO PRINCIPAL
   useEffect(() => {
-    if (userContext?.churches?.length > 0) {
-      setChurches(userContext.churches);
-    }
-  }, [userContext.churches]);
+    
+      const dataChurchs = userContext?.branches
+      if (dataChurchs == undefined) return; 
+        
+        let branchesData =[]
+        dataChurchs.forEach(data => {
+          branchesData.push(data);
+        });
+        
+        setChurches(branchesData);
+        
+        
+  }, [userContext]);
 
   const validateEmail = (email) => {
     const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -89,22 +100,27 @@ export default function Cadastro() {
     setLoading(true);
 
     try {
-      await addDoc(collection(db, "users"), {
-        branchId: branchCompleted.branchId,
-        branchName: branchCompleted.branchName,
-        churchId: branchCompleted.churchId,
-        churchName: branchCompleted.churchName,
-        name: nome.trim(),
-        email: email.trim().toLowerCase(),
-        password: password,
-        birthDate: nascimento,
-        status: "pending",
-        lastAccess: null,
-        createdAt: serverTimestamp(),
-      });
+
+      const creatdUid = await createUserWithEmailAndPassword(auth,email.trim().toLowerCase(),password)
+      console.log(creatdUid)
+
+  await setDoc(doc(db, "users", creatdUid.user.uid), {
+  branchId: branchCompleted?.branchId ?? null,
+  branchName: branchCompleted?.branchName ?? null,
+  churchId: branchCompleted?.churchId ?? null,
+  churchName: branchCompleted?.churchName ?? null,
+  name: nome.trim(),
+  email: creatdUid.user.email,
+  birthDate: nascimento ?? null,
+  status: "pending",
+  lastAccess: null,
+  createdAt: serverTimestamp(),
+  uid: creatdUid.user.uid,
+});
+
 
       Alert.alert("Sucesso", "Seu cadastro foi enviado para aprovação!", [
-        { text: "OK", onPress: () => route.push("/") },
+        { text: "OK", onPress: () => ""},
       ]);
     } catch (error) {
       console.error("Erro ao salvar:", error);

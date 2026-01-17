@@ -42,6 +42,7 @@ export default function Config() {
     
     const fetchData = async () => {
       
+    
       try {
       const querySnapshot = doc(db,'users',userContext.id);
       const dataSnapp = await getDoc(querySnapshot);
@@ -53,7 +54,6 @@ export default function Config() {
 
         
           const user = dataSnapp.data();
-          
           setUserId(dataSnapp.id);
           setLoading(dataSnapp.id);
           setusuarios(user);
@@ -64,8 +64,9 @@ export default function Config() {
           setTsg(user.tsg);
           setAtribuicao(user.atribuicao);
           setSearchUser({emailInput: user.email});
-          setUserContext(user);
+          setUserContext(...userContext,{userCard:[user]})
      
+          console.log("testando copia do userContext", context)
       
       } catch (error) {
 
@@ -75,9 +76,10 @@ export default function Config() {
     }
     fetchData();
 
-  }, []);
+    console.log(userId, ' ID do usuario no config');
 
-  console.log(userId, ' ID do usuario no config');
+  }, [userContext.id]);
+
 
   // funcao para escolher a imagem da galeria e fazer upload para o firebase storage
 

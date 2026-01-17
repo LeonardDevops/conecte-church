@@ -34,7 +34,7 @@ export default function Ofertas({ navigation }) {
   useEffect(() => {
     console.log("Contexto do usuário:", userContext);
     console.log("Pix Config:", userContext?.pixConfig);
-  }, [userContext]);
+  }, []);
 
   // Função para gerar payload PIX
   const generatePixPayload = (chavePix, valor, descricao) => {
@@ -126,19 +126,21 @@ export default function Ofertas({ navigation }) {
 
     try {
       await Clipboard.setStringAsync(pixPayload);
-      
+
       // Salvar no Firestore
       const financeData = {
-        type: tipo,
+        type: tipo.toLowerCase(),
         amount: parseFloat(valor),
         descripition: descricao || tipo,
         pixKey: userContext?.pixConfig?.pixKey,
         qrCodeUrl: qrCodeUrl,
-        usuario: userContext?.email || "Anônimo",
+        userName: userContext?.name || "Anônimo",
         branchName: userContext?.branchName || "Matriz",
         date: new Date().toLocaleDateString('pt-BR'),
-        timestamp: serverTimestamp(),
+        createdAt: serverTimestamp(),
         status: "pendente",
+        category:"geral",
+        paymentMethod:"Pix",
         branchId:userContext?.branchId
       };
 
@@ -217,14 +219,14 @@ export default function Ofertas({ navigation }) {
             <TouchableOpacity
               style={[
                 styles.optionButton,
-                tipo === "Dízimo" && styles.optionButtonActive
+                tipo === "Dizimo" && styles.optionButtonActive
               ]}
-              onPress={() => setTipo("Dízimo")}
+              onPress={() => setTipo("Dizimo")}
               activeOpacity={0.7}
             >
               <Text style={[
                 styles.optionText,
-                tipo === "Dízimo" && styles.optionTextActive
+                tipo === "Dizimo" && styles.optionTextActive
               ]}>
                 Dízimo
               </Text>

@@ -3,31 +3,35 @@ import { Image, StyleSheet, Text, View } from 'react-native';
 import { AppContext } from "../src/Data/contextApi";
 
 
-
 export default function Card(params) {
 
-
+    
+    
+    
+    
     const { userContext } = useContext(AppContext) 
-    const { name:name } = userContext.churchesPr;
-
+    // const { name:name } = userContext.churchesPr;
+    
+    
+    console.log(userContext)
     return (
         <View style={styles.content}>
 
             <View style={styles.container}>
 
                 <View style={styles.nome}>
-                    <Text style={styles.title}>Nome: {userContext.name}</Text>
+                    <Text style={styles.title}>Nome: {userContext?.name}</Text>
                 </View>
-                <Text style={styles.title}>Data Nascimento: {userContext.nascimento}</Text>
-                <Text style={styles.title}>Phone: {userContext.phone}</Text>
+                <Text style={styles.title}>Data Nascimento: {userContext?.birthDate}</Text>
+                <Text style={styles.title}>Phone:{userContext?.phone}</Text>
                 <Text style={styles.title}></Text>
                 <View style={styles.logo}>
 
                     <Text style={styles.rodape}></Text>
                     <Image style={styles.logoimg} source={require('./img/meta.webp')} />
                 </View>
-                <Text style={styles.titleAtribuicao}>Atribuicao: {userContext.atribuicao}</Text>
-                <Text style={styles.title}>Tipo Sanguíneo: {userContext.tsg}</Text>
+                <Text style={styles.titleAtribuicao}>Atribuicao:{userContext?.atribuicao}</Text>
+                <Text style={styles.title}>Tipo Sanguíneo:{userContext?.tsg}</Text>
                 <Text style={styles.target}>{}</Text>
             </View>
 
