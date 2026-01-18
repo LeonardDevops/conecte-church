@@ -1,10 +1,11 @@
 import * as Clipboard from 'expo-clipboard';
 import { addDoc, collection, serverTimestamp } from "firebase/firestore";
-import { useContext, useEffect, useState } from "react";
+import { useContext, useState } from "react";
 import {
   Alert,
   Dimensions,
   KeyboardAvoidingView,
+  PixelRatio,
   Platform,
   ScrollView,
   StyleSheet,
@@ -15,9 +16,11 @@ import {
 } from "react-native";
 import QRCode from "react-native-qrcode-svg";
 import { AppContext } from "../../src/Data/contextApi";
-import { db } from "../../src/Data/FirebaseConfig"; // Importe sua configuração do Firebases
+import { db } from "../../src/Data/FirebaseConfig";
 
 const { width, height } = Dimensions.get("window");
+const scale = width / 375;
+const normalize = (size) => Math.round(PixelRatio.roundToNearestPixel(size * scale));
 
 export default function Ofertas({ navigation }) {
   const [tipo, setTipo] = useState("Dízimo");
@@ -29,623 +32,271 @@ export default function Ofertas({ navigation }) {
   const [qrGenerated, setQrGenerated] = useState(false);
 
   const { userContext } = useContext(AppContext);
-  
-  // Verificar estrutura do contexto
-  useEffect(() => {
-    console.log("Contexto do usuário:", userContext);
-    console.log("Pix Config:", userContext?.pixConfig);
-  }, []);
 
-  // Função para gerar payload PIX
+  // Função para gerar payload PIX Estático (Padrão Banco Central)
   const generatePixPayload = (chavePix, valor, descricao) => {
     if (!chavePix || !valor) return "";
     
     const valorFormatado = parseFloat(valor).toFixed(2);
-    const nomeRecebedor = userContext?.pixConfig?.nome || "IGREJA META";
-    const cidade = userContext?.pixConfig?.cidade || "RIO DE JANEIRO";
+    const nomeRecebedor = (userContext?.pixConfig?.nome || "IGREJA").substring(0, 25).toUpperCase();
+    const cidade = (userContext?.pixConfig?.cidade || "BRASIL").substring(0, 15).toUpperCase();
     
-    // Formatação básica do payload PIX (simplificada)
-    const payload = `0002012658${chavePix.length.toString().padStart(2, '0')}${chavePix}52040000530398654${valorFormatado.length.toString().padStart(2, '0')}${valorFormatado}5802BR59${nomeRecebedor.length.toString().padStart(2, '0')}${nomeRecebedor}60${cidade.length.toString().padStart(2, '0')}${cidade}62070503***`;
+    // Auxiliar para montar blocos (Padrão EMV Co)
+    const mountBlock = (id, value) => id + value.length.toString().padStart(2, '0') + value;
+
+    let payload = "000201010212"; // Cabeçalho padrão
     
-    // Cálculo do CRC16 (simplificado)
+    // Dados da conta (Chave Pix)
+    const merchantAccount = "0014BR.GOV.BCB.PIX" + mountBlock("01", chavePix);
+    payload += mountBlock("26", merchantAccount);
+    
+    payload += "52040000"; // Categoria
+    payload += "5303986";  // Moeda (Real)
+    payload += mountBlock("54", valorFormatado); // Valor
+    payload += "5802BR";   // País
+    payload += mountBlock("59", nomeRecebedor);
+    payload += mountBlock("60", cidade);
+    payload += "62070503***"; // Campo adicional padrão
+    payload += "6304"; // Indicador de CRC16
+
+    // Cálculo real de CRC16 CCITT
     const calculateCRC16 = (str) => {
       let crc = 0xFFFF;
       for (let i = 0; i < str.length; i++) {
         crc ^= str.charCodeAt(i) << 8;
         for (let j = 0; j < 8; j++) {
-          crc = crc & 0x8000 ? (crc << 1) ^ 0x1021 : crc << 1;
+          crc = (crc & 0x8000) ? (crc << 1) ^ 0x1021 : crc << 1;
           crc &= 0xFFFF;
         }
       }
       return crc.toString(16).toUpperCase().padStart(4, '0');
     };
     
-    const crc = calculateCRC16(payload + "6304");
-    return payload + "6304" + crc;
+    return payload + calculateCRC16(payload);
   };
 
   const gerarQRCode = async () => {
-    if (!valor || isNaN(parseFloat(valor)) || parseFloat(valor) <= 0) {
+    if (!valor || isNaN(parseFloat(valor.replace(',', '.'))) || parseFloat(valor.replace(',', '.')) <= 0) {
       Alert.alert("Atenção", "Por favor, informe um valor válido.");
       return;
     }
 
-    // Verificar se temos chave PIX no contexto
     const chavePix = userContext?.pixConfig?.pixKey;
     if (!chavePix) {
-      Alert.alert("Erro", "Chave PIX não configurada no sistema.");
+      Alert.alert("Erro", "Chave PIX não configurada pelo administrador.");
       return;
     }
 
     setLoading(true);
-    
     try {
-      const valorNumerico = parseFloat(valor).toFixed(2);
-      
-      // Gerar payload PIX
+      const valorNumerico = parseFloat(valor.replace(',', '.')).toFixed(2);
       const payload = generatePixPayload(chavePix, valorNumerico, descricao);
       
-      // Gerar URL para QR Code
-      const qrData = {
-        pixKey: chavePix,
-        amount: valorNumerico,
-        description: `${tipo}: ${descricao || "Contribuição"}`,
-        recipient: userContext?.pixConfig?.nome || "IGREJA META",
-        city: userContext?.pixConfig?.cidade || "RIO DE JANEIRO",
-        transactionId: `IGREJA${Date.now()}`
-      };
-      
-      // URL PIX formatada
-      const pixUrl = `pix://${encodeURIComponent(chavePix)}?amount=${valorNumerico}&name=${encodeURIComponent(qrData.recipient)}&city=${encodeURIComponent(qrData.city)}&txid=${qrData.transactionId}`;
-      
       setPixPayload(payload);
-      setQrCodeUrl(pixUrl);
+      setQrCodeUrl(payload); // O QR Code agora renderiza o próprio payload Copia e Cola
       setQrGenerated(true);
-      
-      Alert.alert(
-        "QR Code Gerado!",
-        `Tipo: ${tipo}\nValor: R$ ${valorNumerico}\n${descricao ? `Descrição: ${descricao}` : ''}\n\nClique em "Copiar PIX" para compartilhar.`,
-        [
-          { text: "OK", style: "default" }
-        ]
-      );
-      
     } catch (error) {
-      console.error("Erro ao gerar QR Code:", error);
-      Alert.alert("Erro", "Não foi possível gerar o QR Code.");
+      Alert.alert("Erro", "Falha ao gerar QR Code.");
     } finally {
       setLoading(false);
     }
   };
 
   const copiarCodigo = async () => {
-    if (!pixPayload) {
-      Alert.alert("Atenção", "Gere o QR Code primeiro.");
-      return;
-    }
+    if (!pixPayload) return;
 
     try {
       await Clipboard.setStringAsync(pixPayload);
 
-      // Salvar no Firestore
+      // Salvar histórico no Firestore mantendo sua lógica original
       const financeData = {
         type: tipo.toLowerCase(),
-        amount: parseFloat(valor),
+        amount: parseFloat(valor.replace(',', '.')),
         descripition: descricao || tipo,
         pixKey: userContext?.pixConfig?.pixKey,
-        qrCodeUrl: qrCodeUrl,
+        qrCodeUrl: "pix_generated",
         userName: userContext?.name || "Anônimo",
         branchName: userContext?.branchName || "Matriz",
         date: new Date().toLocaleDateString('pt-BR'),
         createdAt: serverTimestamp(),
         status: "pendente",
-        category:"geral",
-        paymentMethod:"Pix",
-        branchId:userContext?.branchId
+        category: "geral",
+        paymentMethod: "Pix",
+        branchId: userContext?.branchId
       };
 
       await addDoc(collection(db, "finances"), financeData);
-      
-      Alert.alert(
-        "✅ Sucesso!",
-        "Código PIX copiado e contribuição registrada!\n\nCole no aplicativo do seu banco para realizar o pagamento.",
-        [
-          { 
-            text: "Entendi", 
-            style: "default",
-            onPress: () => {
-              // Opcional: Navegar para histórico ou limpar
-              setValor("");
-              setDescricao("");
-              setQrGenerated(false);
-            }
-          }
-        ]
-      );
-      
+      Alert.alert("✅ Copiado!", "Código PIX copiado. Agora cole no app do seu banco para pagar.");
     } catch (error) {
-      console.error("Erro ao copiar/salvar:", error);
-      Alert.alert("Erro", "Não foi possível copiar o código.");
+      Alert.alert("Erro", "Não foi possível registrar a contribuição.");
     }
   };
 
   const limparCampos = () => {
     setValor("");
     setDescricao("");
-    setQrCodeUrl("");
     setPixPayload("");
     setQrGenerated(false);
   };
 
-  // Informações da chave PIX
-  const pixInfo = userContext?.pixConfig || {};
-  const chaveMascarada = pixInfo.pixKey 
-    ? `${pixInfo.pixKey.substring(0, 10)}...${pixInfo.pixKey.substring(pixInfo.pixKey.length - 4)}`
-    : "Não configurada";
-
   return (
     <KeyboardAvoidingView 
       style={styles.container}
-      behavior={Platform.OS === "ios" ? "padding" : "height"}
-      keyboardVerticalOffset={Platform.OS === "ios" ? 64 : 0}
+      behavior={Platform.OS === "ios" ? "padding" : undefined}
     >
-      <ScrollView 
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-        keyboardShouldPersistTaps="handled"
-      >
+      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+        
         <View style={styles.header}>
           <Text style={styles.title}>Dízimos e Ofertas</Text>
-          <Text style={styles.subtitle}>Contribua para a obra de Deus</Text>
-          
-          {/* Info da chave PIX */}
-          {pixInfo.pixKey && (
-            <View style={styles.pixInfoContainer}>
-              <Text style={styles.pixInfoText}>
-                Chave PIX: {chaveMascarada}
-              </Text>
-              <Text style={styles.pixInfoSubtext}>
-                {pixInfo.nome} - {pixInfo.cidade}
-              </Text>
-            </View>
-          )}
+          <Text style={styles.subtitle}>Sua fidelidade faz a obra crescer</Text>
         </View>
 
-        {/* Card Principal */}
         <View style={styles.card}>
-          {/* Seletor de Tipo */}
-          <Text style={styles.label}>Selecione o Tipo:</Text>
-          <View style={styles.optionContainer}>
-            <TouchableOpacity
-              style={[
-                styles.optionButton,
-                tipo === "Dizimo" && styles.optionButtonActive
-              ]}
-              onPress={() => setTipo("Dizimo")}
-              activeOpacity={0.7}
+          {/* Seletor de Tipo Profissional */}
+          <View style={styles.tabContainer}>
+            <TouchableOpacity 
+              style={[styles.tab, tipo === "Dízimo" && styles.tabActive]} 
+              onPress={() => setTipo("Dízimo")}
             >
-              <Text style={[
-                styles.optionText,
-                tipo === "Dizimo" && styles.optionTextActive
-              ]}>
-                Dízimo
-              </Text>
+              <Text style={[styles.tabText, tipo === "Dízimo" && styles.tabTextActive]}>Dízimo</Text>
             </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[
-                styles.optionButton,
-                tipo === "Oferta" && styles.optionButtonActive
-              ]}
+            <TouchableOpacity 
+              style={[styles.tab, tipo === "Oferta" && styles.tabActive]} 
               onPress={() => setTipo("Oferta")}
-              activeOpacity={0.7}
             >
-              <Text style={[
-                styles.optionText,
-                tipo === "Oferta" && styles.optionTextActive
-              ]}>
-                Oferta
-              </Text>
+              <Text style={[styles.tabText, tipo === "Oferta" && styles.tabTextActive]}>Oferta</Text>
             </TouchableOpacity>
           </View>
 
-          {/* Campo de Valor */}
-          <Text style={[styles.label, { marginTop: height * 0.03 }]}>Valor (R$):</Text>
-          <View style={styles.inputContainer}>
-            <Text style={styles.currencySymbol}>R$</Text>
+          <Text style={styles.label}>Valor da Contribuição</Text>
+          <View style={styles.inputRow}>
+            <Text style={styles.currencyPrefix}>R$</Text>
             <TextInput
               style={styles.valorInput}
               placeholder="0,00"
-              placeholderTextColor="#999"
-              keyboardType="decimal-pad"
+              keyboardType="numeric"
               value={valor}
-              onChangeText={(text) => {
-                const cleaned = text.replace(/[^0-9,.]/g, '');
-                setValor(cleaned);
-              }}
-              returnKeyType="done"
+              onChangeText={setValor}
               editable={!qrGenerated}
             />
           </View>
 
-          {/* Campo de Descrição (Opcional) */}
-          <Text style={[styles.label, { marginTop: height * 0.02 }]}>Descrição (Opcional):</Text>
+          <Text style={styles.label}>Motivo / Descrição (Opcional)</Text>
           <TextInput
             style={styles.descricaoInput}
-            placeholder="Ex: Oferta de gratidão, Campanha especial..."
-            placeholderTextColor="#999"
+            placeholder="Ex: Gratidão pela família"
             value={descricao}
             onChangeText={setDescricao}
-            multiline
-            maxLength={100}
             editable={!qrGenerated}
           />
 
-          {/* QR Code Gerado */}
-          {qrGenerated && qrCodeUrl && (
-            <View style={styles.qrCodeContainer}>
-              <Text style={styles.qrCodeTitle}>📱 QR Code Gerado</Text>
-              
-              <View style={styles.qrCodeBox}>
+          {!qrGenerated ? (
+            <TouchableOpacity 
+              style={styles.btnGerar} 
+              onPress={gerarQRCode}
+              disabled={loading}
+            >
+              <Text style={styles.btnText}>{loading ? "PROCESSANDO..." : "GERAR PIX"}</Text>
+            </TouchableOpacity>
+          ) : (
+            <View style={styles.qrArea}>
+              <View style={styles.qrBox}>
                 <QRCode
-                  value={pixPayload || qrCodeUrl}
-                  size={width * 0.5}
-                  color="#000000"
-                  backgroundColor="#FFFFFF"
-                  logo={require('../img/meta.webp')} // Adicione seu logo
-                  logoSize={40}
-                  logoBackgroundColor="transparent"
+                  value={pixPayload}
+                  size={normalize(180)}
+                  logo={require('../img/meta.webp')}
+                  logoSize={normalize(40)}
                 />
-                
-                <Text style={styles.qrCodeValue}>
-                  R$ {parseFloat(valor).toFixed(2)}
-                </Text>
-                <Text style={styles.qrCodeType}>{tipo}</Text>
               </View>
               
-              <TouchableOpacity
-                style={[styles.actionButton, styles.copyButton]}
-                onPress={copiarCodigo}
-                activeOpacity={0.8}
-              >
-                <Text style={styles.copyButtonText}>
-                  📋 COPIAR CÓDIGO PIX
-                </Text>
+              <TouchableOpacity style={styles.btnCopiar} onPress={copiarCodigo}>
+                <Text style={styles.btnText}>COPIAR CÓDIGO PIX</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity style={styles.btnLimpar} onPress={limparCampos}>
+                <Text style={styles.btnLimparText}>Fazer outra contribuição</Text>
               </TouchableOpacity>
             </View>
           )}
-
-          {/* Botões de Ação */}
-          <View style={styles.buttonsContainer}>
-            {!qrGenerated ? (
-              <>
-                <TouchableOpacity
-                  style={[styles.actionButton, styles.primaryButton]}
-                  onPress={gerarQRCode}
-                  activeOpacity={0.8}
-                  disabled={loading}
-                >
-                  <Text style={styles.primaryButtonText}>
-                    {loading ? "⏳ GERANDO..." : "📱 GERAR QR CODE"}
-                  </Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={[styles.actionButton, styles.secondaryButton]}
-                  onPress={limparCampos}
-                  activeOpacity={0.8}
-                >
-                  <Text style={styles.secondaryButtonText}>
-                    🔄 LIMPAR
-                  </Text>
-                </TouchableOpacity>
-              </>
-            ) : (
-              <TouchableOpacity
-                style={[styles.actionButton, styles.newButton]}
-                onPress={limparCampos}
-                activeOpacity={0.8}
-              >
-                <Text style={styles.newButtonText}>
-                  ✨ NOVA CONTRIBUIÇÃO
-                </Text>
-              </TouchableOpacity>
-            )}
-          </View>
-
-          {/* Informações Adicionais */}
-          <View style={styles.infoBox}>
-            <Text style={styles.infoTitle}>💡 Como funciona:</Text>
-            <Text style={styles.infoText}>
-              1. Selecione o tipo e valor{"\n"}
-              2. Gere o QR Code PIX{"\n"}
-              3. Copie o código ou escaneie o QR{"\n"}
-              4. Pague no app do seu banco{"\n"}
-              5. A contribuição é registrada automaticamente
-            </Text>
-          </View>
         </View>
 
-        {/* Verso Bíblico */}
-        <View style={styles.verseContainer}>
-          <Text style={styles.verseText}>
-            "Cada um dê conforme determinou em seu coração, não com pesar ou por obrigação, pois Deus ama quem dá com alegria."
-          </Text>
-          <Text style={styles.verseReference}>2 Coríntios 9:7</Text>
+        <View style={styles.footerVerse}>
+          <Text style={styles.verseText}>"Deus ama quem dá com alegria."</Text>
+          <Text style={styles.verseRef}>2 Coríntios 9:7</Text>
         </View>
+
       </ScrollView>
     </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    width: width,
-    backgroundColor: "#F8F9FA",
+  container: { flex: 1, backgroundColor: '#F5F7FA' },
+  scrollContent: { paddingBottom: 40 },
+  header: { 
+    backgroundColor: '#000', 
+    paddingTop: normalize(50), 
+    paddingBottom: normalize(30), 
+    alignItems: 'center',
+    borderBottomLeftRadius: 30,
+    borderBottomRightRadius: 30
   },
-  scrollContent: {
-    flexGrow: 1,
-    alignItems: "center",
-    paddingBottom: height * 0.05,
-  },
-  header: {
-    width: width,
-    paddingVertical: height * 0.03,
-    backgroundColor: "#2b2b2b",
-    alignItems: "center",
-    marginBottom: height * 0.02,
-  },
-  title: {
-    fontSize: width * 0.07,
-    fontWeight: "bold",
-    color: "#FFFFFF",
-    textAlign: "center",
-  },
-  subtitle: {
-    fontSize: width * 0.04,
-    color: "rgba(255,255,255,0.9)",
-    marginTop: 5,
-    textAlign: "center",
-  },
-  pixInfoContainer: {
-    marginTop: height * 0.02,
-    padding: width * 0.03,
-    backgroundColor: "rgba(255,255,255,0.1)",
-    borderRadius: 8,
-    alignItems: "center",
-  },
-  pixInfoText: {
-    fontSize: width * 0.035,
-    color: "#FFFFFF",
-    fontWeight: "500",
-  },
-  pixInfoSubtext: {
-    fontSize: width * 0.03,
-    color: "rgba(255,255,255,0.8)",
-    marginTop: 2,
-  },
+  title: { color: '#FFF', fontSize: normalize(22), fontWeight: 'bold' },
+  subtitle: { color: '#AAA', fontSize: normalize(13), marginTop: 5 },
   card: {
-    width: width * 0.95,
-    backgroundColor: "#FFFFFF",
-    borderRadius: 16,
-    padding: width * 0.05,
-    marginVertical: height * 0.02,
-    shadowColor: "#000",
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
+    backgroundColor: '#FFF',
+    marginHorizontal: normalize(20),
+    marginTop: normalize(-20),
+    borderRadius: 20,
+    padding: normalize(20),
+    elevation: 10,
+    shadowColor: '#000',
     shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 5,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 5 }
   },
-  label: {
-    fontSize: width * 0.045,
-    fontWeight: "600",
-    color: "#333333",
-    marginBottom: height * 0.01,
+  tabContainer: { 
+    flexDirection: 'row', 
+    backgroundColor: '#F1F3F5', 
+    borderRadius: 12, 
+    padding: 4, 
+    marginBottom: 20 
   },
-  optionContainer: {
-    width: "100%",
-    height: height * 0.08,
-    flexDirection: "row",
-    backgroundColor: "#F1F3F5",
-    borderRadius: 12,
-    overflow: "hidden",
-    marginBottom: height * 0.02,
+  tab: { flex: 1, paddingVertical: 10, alignItems: 'center', borderRadius: 10 },
+  tabActive: { backgroundColor: '#000' },
+  tabText: { color: '#666', fontWeight: 'bold' },
+  tabTextActive: { color: '#FFF' },
+  label: { fontSize: normalize(12), color: '#888', fontWeight: '700', marginBottom: 8, textTransform: 'uppercase' },
+  inputRow: { 
+    flexDirection: 'row', 
+    alignItems: 'center', 
+    backgroundColor: '#F8F9FA', 
+    borderRadius: 12, 
+    borderWidth: 1, 
+    borderColor: '#E9ECEF', 
+    paddingHorizontal: 15,
+    marginBottom: 20
   },
-  optionButton: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
+  currencyPrefix: { fontSize: normalize(18), fontWeight: 'bold', color: '#000', marginRight: 10 },
+  valorInput: { flex: 1, height: 55, fontSize: normalize(18), fontWeight: 'bold', color: '#000' },
+  descricaoInput: { 
+    backgroundColor: '#F8F9FA', 
+    borderRadius: 12, 
+    borderWidth: 1, 
+    borderColor: '#E9ECEF', 
+    padding: 15, 
+    height: 55, 
+    marginBottom: 25,
+    color: '#000'
   },
-  optionButtonActive: {
-    backgroundColor: "#000000",
-  },
-  optionText: {
-    fontSize: width * 0.045,
-    fontWeight: "500",
-    color: "#666666",
-  },
-  optionTextActive: {
-    color: "#FFFFFF",
-    fontWeight: "600",
-  },
-  inputContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#F8F9FA",
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: "#E9ECEF",
-    paddingHorizontal: width * 0.04,
-    height: height * 0.07,
-  },
-  currencySymbol: {
-    fontSize: width * 0.06,
-    fontWeight: "600",
-    color: "#000000",
-    marginRight: width * 0.02,
-  },
-  valorInput: {
-    flex: 1,
-    fontSize: width * 0.06,
-    fontWeight: "600",
-    color: "#333333",
-    paddingVertical: height * 0.01,
-  },
-  descricaoInput: {
-    backgroundColor: "#F8F9FA",
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: "#E9ECEF",
-    paddingHorizontal: width * 0.04,
-    paddingVertical: height * 0.015,
-    fontSize: width * 0.04,
-    color: "#333333",
-    minHeight: height * 0.08,
-    textAlignVertical: "top",
-  },
-  qrCodeContainer: {
-    marginTop: height * 0.04,
-    alignItems: "center",
-  },
-  qrCodeTitle: {
-    fontSize: width * 0.045,
-    fontWeight: "bold",
-    color: "#333333",
-    marginBottom: height * 0.02,
-  },
-  qrCodeBox: {
-    alignItems: "center",
-    padding: width * 0.05,
-    backgroundColor: "#FFFFFF",
-    borderRadius: 16,
-    borderWidth: 2,
-    borderColor: "#000000",
-    marginBottom: height * 0.02,
-    shadowColor: "#000",
-    shadowOffset: {
-      width: 0,
-      height: 4,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 5,
-  },
-  qrCodeValue: {
-    fontSize: width * 0.06,
-    fontWeight: "bold",
-    color: "#000000",
-    marginTop: height * 0.02,
-  },
-  qrCodeType: {
-    fontSize: width * 0.04,
-    color: "#666666",
-    marginTop: height * 0.01,
-  },
-  buttonsContainer: {
-    marginTop: height * 0.04,
-    gap: height * 0.015,
-  },
-  actionButton: {
-    width: "100%",
-    height: height * 0.07,
-    borderRadius: 12,
-    justifyContent: "center",
-    alignItems: "center",
-    shadowColor: "#000",
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  primaryButton: {
-    backgroundColor: "#000000",
-  },
-  primaryButtonText: {
-    fontSize: width * 0.045,
-    fontWeight: "bold",
-    color: "#FFFFFF",
-  },
-  secondaryButton: {
-    backgroundColor: "#FFFFFF",
-    borderWidth: 2,
-    borderColor: "#2D5A8C",
-  },
-  secondaryButtonText: {
-    fontSize: width * 0.04,
-    fontWeight: "600",
-    color: "#2D5A8C",
-  },
-  copyButton: {
-    backgroundColor: "#10B981",
-    marginTop: height * 0.01,
-  },
-  copyButtonText: {
-    fontSize: width * 0.04,
-    fontWeight: "bold",
-    color: "#FFFFFF",
-  },
-  newButton: {
-    backgroundColor: "#3B82F6",
-  },
-  newButtonText: {
-    fontSize: width * 0.045,
-    fontWeight: "bold",
-    color: "#FFFFFF",
-  },
-  infoBox: {
-    marginTop: height * 0.04,
-    padding: width * 0.04,
-    backgroundColor: "#F0F7FF",
-    borderRadius: 12,
-    borderLeftWidth: 4,
-    borderLeftColor: "#000000",
-  },
-  infoTitle: {
-    fontSize: width * 0.04,
-    fontWeight: "bold",
-    color: "#000000",
-    marginBottom: height * 0.01,
-  },
-  infoText: {
-    fontSize: width * 0.035,
-    color: "#555555",
-    lineHeight: height * 0.025,
-  },
-  verseContainer: {
-    width: width * 0.95,
-    marginTop: height * 0.03,
-    padding: width * 0.05,
-    backgroundColor: "#FFFFFF",
-    borderRadius: 12,
-    alignItems: "center",
-    shadowColor: "#000",
-    shadowOffset: {
-      width: 0,
-      height: 1,
-    },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  verseText: {
-    fontSize: width * 0.04,
-    color: "#444444",
-    fontStyle: "italic",
-    textAlign: "center",
-    lineHeight: height * 0.025,
-    marginBottom: height * 0.01,
-  },
-  verseReference: {
-    fontSize: width * 0.035,
-    fontWeight: "600",
-    color: "#000000",
-    textAlign: "center",
-  },
+  btnGerar: { backgroundColor: '#000', height: 60, borderRadius: 12, justifyContent: 'center', alignItems: 'center' },
+  btnText: { color: '#FFF', fontWeight: 'bold', fontSize: normalize(14) },
+  qrArea: { alignItems: 'center', marginTop: 10 },
+  qrBox: { padding: 15, backgroundColor: '#FFF', borderRadius: 15, borderWidth: 1, borderColor: '#EEE', marginBottom: 20 },
+  btnCopiar: { backgroundColor: '#10B981', height: 60, width: '100%', borderRadius: 12, justifyContent: 'center', alignItems: 'center' },
+  btnLimpar: { marginTop: 15 },
+  btnLimparText: { color: '#666', fontWeight: '600', textDecorationLine: 'underline' },
+  footerVerse: { marginTop: 30, alignItems: 'center', paddingHorizontal: 40 },
+  verseText: { fontStyle: 'italic', textAlign: 'center', color: '#888', fontSize: normalize(14) },
+  verseRef: { fontWeight: 'bold', color: '#555', marginTop: 5 }
 });

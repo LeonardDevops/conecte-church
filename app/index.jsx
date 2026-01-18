@@ -1,405 +1,275 @@
-import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { Picker } from "@react-native-picker/picker";
-import { Link, useRouter } from "expo-router";
+import { useRouter } from "expo-router"; // Removido o Link
 import { signInWithEmailAndPassword } from "firebase/auth";
 import { collection, getDocs, query, where } from "firebase/firestore";
 import { useContext, useEffect, useState } from 'react';
-import { Dimensions, Image, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
+import {
+  Dimensions,
+  Image,
+  PixelRatio,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View
+} from "react-native";
 import Toast from 'react-native-toast-message';
 import { AppContext } from "../src/Data/contextApi";
 import { auth, db } from "../src/Data/FirebaseConfig";
-
-
+import { setItem } from "../src/Data/storage";
 
 const { width, height } = Dimensions.get("window");
 
+const scale = width / 375;
+const normalize = (size) => Math.round(PixelRatio.roundToNearestPixel(size * scale));
 
 export default function Login() {
-
-
-
-  const {setUserContext , userContext } = useContext(AppContext);
+  const { setUserContext, userContext } = useContext(AppContext);
 
   const [selectedValue, setSelectedValue] = useState();
   const [emailInput, setEmailInput] = useState('');
   const [passwordInput, setPasswordInput] = useState('');
-  const [objectBranchesData , setObjectBranchesData] = useState([]);
-  const [branchesData , setBranchesData] = useState(["Selecione"]);
-  const [pixConfigData , setPixConfigData] = useState(null);
+  const [objectBranchesData, setObjectBranchesData] = useState([]);
+  const [branchesData, setBranchesData] = useState(["Selecione"]);
+  const [pixConfigData, setPixConfigData] = useState(null);
+  const [pr, setPr] = useState(null);
 
-  const [pr , setPr] = useState(null);
+  const router = useRouter();
 
-  let isFilial = "selecione uma filial";
-  
-  const router = useRouter()
-  
-  
-  useEffect(()=> {
-    
-    const  getChurchData = async () => {
-      
+  useEffect(() => {
+    const getChurchData = async () => {
       try {
-        const queryBranc = query(collection(db, "branches"),where("status", "==", "active"));  
+        const queryBranc = query(collection(db, "branches"), where("status", "==", "active"));
         const dataBranch = (await getDocs(queryBranc));
-      
+
         let nameBranches = []
         let objectBranches = []
         let branchPr = []
-        dataBranch.forEach((item)=> {
-                 
-                nameBranches.push(item.data().name);
-                branchPr.push(item.data().pastor)
-                 objectBranches.push({
-                  id:item.id,
-                  name:item.data().name,
-                  pixConfig:item.data().pixConfig
-                
-                })     
+        dataBranch.forEach((item) => {
+          nameBranches.push(item.data().name);
+          branchPr.push(item.data().pastor)
+          objectBranches.push({
+            id: item.id,
+            name: item.data().name,
+            pixConfig: item.data().pixConfig
+          })
+          setUserContext(userContext, ...nameBranches)
+        })
 
-                setUserContext(userContext,...nameBranches)
-              })
+        branchPr.forEach((item) => { setPr(item) })
 
-              branchPr.forEach((item)=> {
-
-                setPr(item)
-
-              })
-
-
-              console.log('testando se to pegando a iformacao ',objectBranches)
-              console.log("PASTORES", branchPr)
-          setBranchesData([...branchesData,... nameBranches]);
-          setObjectBranchesData(objectBranches);
-          setUserContext({churches:[nameBranches]});
-          // console.log('adicionado na useState', objectBranchesData);
+        setBranchesData([...branchesData, ...nameBranches]);
+        setObjectBranchesData(objectBranches);
+        setUserContext({ churches: [nameBranches] });
       } catch (error) {
-        
         console.log('erro ao buscar dados da igreja', error);
       }
-
     }
     getChurchData();
-    console.log(selectedValue)
- },[]);
+  }, []);
 
-  
-// useEffect(() => {
-//   console.log(userContext,"CONSUMINDO OS DADOS DO CONTEXTO ========================================================================================");
-// }, [userContext]);
-
-    
   useEffect(() => {
-  if (!selectedValue || selectedValue === "Selecione") return;
+    if (!selectedValue || selectedValue === "Selecione") return;
+    const branch = objectBranchesData.find(item => item.name === selectedValue);
+    if (branch) { setPixConfigData(branch.pixConfig); }
+  }, [selectedValue, objectBranchesData]);
 
-  const branch = objectBranchesData.find(
-    item => item.name === selectedValue
-  );
-
-  if (branch) {
-    setPixConfigData(branch.pixConfig);
-  }
-}, [selectedValue, objectBranchesData]);
-
-
-
- async function handleLogin() {
-
-  if (!emailInput || !passwordInput || selectedValue === "Selecione") return alert("Necessario Prencher todos os Campos e Selecionar a Filial")
-      try {
-
-          const validateUser = signInWithEmailAndPassword(auth, emailInput.toLowerCase() , passwordInput )
-          .then(async ()=> {
-
-            
-            
-            const queryUsers = query(collection(db, "users"), where("status", "==", "active"),
+  async function handleLogin() {
+    if (!emailInput || !passwordInput || selectedValue === "Selecione") return alert("Necessário preencher todos os campos")
+    try {
+      const validateUser = signInWithEmailAndPassword(auth, emailInput.toLowerCase(), passwordInput)
+        .then(async (snapshot) => {
+          setItem("uid", snapshot.user.uid);
+          const queryUsers = query(collection(db, "users"), where("status", "==", "active"),
             where("email", "==", emailInput.toLowerCase()),
             where("branchName", "==", selectedValue)
           );
-          
-          
-          const dataUser = (await getDocs(queryUsers)) ;
-          
+
+          const dataUser = (await getDocs(queryUsers));
           if (dataUser.empty) {
-            alert("usuario nao encontrado, verifique os dados e tente novamente!");
-            
+            alert("Usuário não encontrado!");
             return;
           }
-          
-          dataUser.forEach((item)=> {
-            
-            setUserContext(
-              { 
-                id: item.id,
-                email: item.data().email,
-                name:item.data().name,
-                tsg:item?.data().tsg || null,
-                phone:item?.data().phone,
-                birthDate:item.data().birthDate,
-                atribuicao:item.data().atribuicao || null,
-                branchName: item.data().branchName,
-                isLogged: false,
-                branchId : item.data().branchId,
-                pixConfig:pixConfigData,
-                pr:pr.pastor
-                
-              }
-            ); 
-            
-            console.log("dados do usuario setados no context", userContext)
-            // console.log(userContext,"testando")
-            
+
+          dataUser.forEach((item) => {
+            setUserContext({
+              id: item.id,
+              email: item.data().email,
+              name: item.data().name,
+              tsg: item?.data().tsg || null,
+              phone: item?.data().phone,
+              birthDate: item.data().birthDate,
+              atribuicao: item.data().atribuicao || null,
+              branchName: item.data().branchName,
+              isLogged: false,
+              branchId: item.data().branchId,
+              pixConfig: pixConfigData,
+              pr: pr.pastor
+            });
           })
-          
-          //  console.log("Testando o contexto", userContext)
-          
-          
-          setTimeout(()=> {
-            router.push("/IntroAfterLogin");
-            
-          },60);
-          
-        }).catch(()=> {
-          
-        })
-            
-       
-
-
-          
-        } catch (error) {
-            alert("Dados incorretos")
-         
-        }
-          
-          
-   
-      
-       
-     }
-
-
-
-
-
-
-  
-
+          setTimeout(() => { router.push("/IntroAfterLogin"); }, 60);
+        }).catch(() => { alert("Erro ao fazer login") })
+    } catch (error) {
+      alert("Dados incorretos")
+    }
+  }
 
   return (
-    
-  
-    
-    <View style={style.body}>
-      <Toast/>
-      
+    <ScrollView contentContainerStyle={style.scrollContainer} bounces={false}>
+      <View style={style.body}>
+        <Toast />
 
-      <Image
-      style={style.logo}
-      source={require("./img/meta.webp")} />
-      
-      <Text style={style.text}>Ministério Evangelistico Tálamo</Text>
-      <TextInput
-      placeholder='Email'
-      placeholderTextColor={"#727272"}
-      onChangeText={(e)=> setEmailInput(e.trim().toLowerCase())}
-      style={style.input} />
-      <TextInput
-      placeholder='Senha'
-      placeholderTextColor={"#727272"}
-      secureTextEntry
-        onChangeText={(e)=> setPasswordInput(e.trim())}
-      style={style.input} />
+        <Image
+          style={style.logo}
+          source={require("./img/meta.webp")}
+          resizeMode="contain"
+        />
 
-      <View style={style.containerLogin}>
-            <TouchableOpacity onPress={handleLogin}>
-            <View style={style.backcolorLogin}>
-              <MaterialIcons style={{marginRight:40, elevation:5}} name="vpn-key" size={40} color="white" />
-              <Text style={style.textLogin}>Acessar</Text>
-            </View>   
-            </TouchableOpacity>
-        <View style={style.backcolorfilial}>
+        <Text style={style.text}>Ministério Evangelistico Tálamo</Text>
 
-    <Picker
-    selectedValue={selectedValue}
-    style={{ height: 50, width: '95%', 
-      fontFamily:'sans-serif',
-      color:'#ffffffff',
-      shadowColor:'#FFF',
-      fontWeight:'bold', 
-      fontSize:30,
-      borderRadius:4,
-      borderWidth:1,
-      shadowOpacity:23,
-      justifyContent:'center',
-      alignItems:'center',
-      textAlign:'center',
-      backgroundColor:'#1f1f1fff',
-      
-      
-    }}
-    onValueChange={(item) => setSelectedValue(item)}
-    >
-      
+        <View style={style.inputContainer}>
+          <TextInput
+            placeholder='Email'
+            placeholderTextColor={"#999"}
+            onChangeText={(e) => setEmailInput(e.trim().toLowerCase())}
+            style={style.input}
+          />
+          <TextInput
+            placeholder='Senha'
+            placeholderTextColor={"#999"}
+            secureTextEntry
+            onChangeText={(e) => setPasswordInput(e.trim())}
+            style={style.input}
+          />
+        </View>
 
-      {branchesData.map((item)=>  (
-        <Picker.Item
-        key={item} label={item} value={item} />
-        
-      ))}
-    </Picker>
-        
-   
-   
-
-      </View>   
-      </View>
-        {/* <Text style={{marginTop:-20, marginBottom:"2%", color:'#000000ff', fontWeight:'bold'}}>Não Possui cadastro?</Text> */}
-        <TouchableOpacity style={{justifyContent:'center',
-          marginTop:-20, 
-          padding:7, 
-          marginBottom:30 ,
-            alignItems:'center', 
-            width:'45%',
-           borderRadius:4, 
-           backgroundColor:'rgba(0, 0, 0, 1)'}}>
-        <Link style={{color:'#ffffff', fontSize:17, borderRadius:4 , width:'100%', textAlign:'center'}} href={"/Cadastro"} >🙋🏻Cadastro</Link>
+        <TouchableOpacity style={style.btnAcessar} onPress={handleLogin}>
+          <Text style={style.textLogin}>Acessar</Text>
         </TouchableOpacity>
 
+        <View style={style.pickerWrapper}>
+          <Picker
+            selectedValue={selectedValue}
+            style={style.picker}
+            onValueChange={(item) => setSelectedValue(item)}
+          >
+            {branchesData.map((item) => (
+              <Picker.Item key={item} label={item} value={item} style={{fontSize: normalize(14)}} />
+            ))}
+          </Picker>
+        </View>
 
-      <View style={style.botom}>
-        <Text style={{color:"#fff", fontStyle:'italic', fontWeight:'bold ', marginBottom:5}}>Desenvolvido Por IgrejaSmart.IO</Text>
+        {/* BOTÃO CADASTRO CORRIGIDO PARA NAVEGAÇÃO INSTANTÂNEA */}
+        <TouchableOpacity 
+          style={style.btnCadastro} 
+          onPress={() => router.push("/Cadastro")}
+          activeOpacity={0.7}
+        >
+           <Text style={style.textCadastro}>🙋🏻 Cadastro</Text>
+        </TouchableOpacity>
+
+        <View style={style.bottomContainer}>
+          <Text style={style.textFooter}>Desenvolvido por IgrejaSmart.IO</Text>
+        </View>
       </View>
-          
-    </View>
-
-
-        
-        
+    </ScrollView>
   );
 }
 
-
-
 const style = StyleSheet.create({
+  scrollContainer: {
+    flexGrow: 1,
+    backgroundColor: "#f5f5f5",
+  },
   body: {
     flex: 1,
-    justifyContent: "center",
     alignItems: "center",
-    paddingHorizontal: 20,
-    backgroundColor: "#ebeaea",
+    paddingHorizontal: width * 0.08,
+    paddingTop: height * 0.08,
   },
-
   logo: {
-    width: width * 0.32,
-    height: width * 0.32,
-    borderRadius: 12,
-    marginBottom: 40,
-    marginTop: 0,
-    shadowColor: "#ffffffff",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.9,
-    shadowRadius: 10,
-    zIndex: 1,
-    
+    width: normalize(120),
+    height: normalize(120),
+    borderRadius: 15,
+    marginBottom: 20,
   },
-
   text: {
-    fontSize: width * 0.05,
-    fontWeight: "bold",
-    color: "#0f0101ff",
+    fontSize: normalize(18),
+    fontWeight: "600",
+    color: "#333",
     marginBottom: 40,
     textAlign: "center",
   },
-
+  inputContainer: {
+    width: '100%',
+    marginBottom: 15,
+  },
   input: {
-    width: "99%",
-    height: 60,
-    borderColor: "#000",
-    borderWidth: 1,
-    marginBottom: 36,
-    textAlign: "left",
-    fontWeight: "600",
-    fontSize: 18,
-    color: "#1a1a1aff",
-    backgroundColor: "#f5f5f5",
-    borderRadius: 8,
-    marginTop: 10,
-  },
-
-  iconemail: {
-    position: "absolute",
-    top: height * 0.35,
-    left: width * 0.07,
-    padding: 6,
-    backgroundColor: "#0302022a",
-    borderRadius: 50,
-    elevation: 5,
-    zIndex: 1,
-  },
-
-  lock: {
-    position: "absolute",
-    top: height * 0.48,
-    left: width * 0.07,
-    padding: 6,
-    backgroundColor: "#0302022a",
-    borderRadius: 50,
-    elevation: 5,
-    zIndex: 1,
-  },
-
-  containerLogin: {
     width: "100%",
-    marginBottom: 60,
-    flexDirection: "row",
-    justifyContent: "center",
-    alignItems: "center",
-    gap: 20,
+    height: normalize(55),
+    backgroundColor: "#fff",
+    borderRadius: 8,
+    paddingHorizontal: 15,
+    fontSize: normalize(16),
+    color: "#333",
+    marginBottom: 15,
+    elevation: 2,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
   },
-
-  backcolorLogin: {
-    backgroundColor: "#030303ff",
-    width: width * 0.45,
-    height: width * 0.28,
-    borderRadius: 16,
-    justifyContent: "center",
-    alignItems: "center",
-    shadowRadius: 10,
-    shadowColor: "#020202d2",
-    borderColor: "#ffffffff",
-    borderWidth: 2,
-    elevation: 5,
-  },
-
-  backcolorfilial: {
-    backgroundColor: "#201d1dff",
-    width: width * 0.44,
-    height: 70,
+  btnAcessar: {
+    backgroundColor: "#000",
+    width: "100%",
+    height: normalize(50),
     borderRadius: 12,
     justifyContent: "center",
     alignItems: "center",
-    elevation: 5,
+    marginBottom: 20,
   },
-
-  botom: {
-    position: "absolute",
-    bottom: 0,
-    width: "120%",
-    backgroundColor: "#000000ff",
-    height: height * 0.06,
-    justifyContent: "center",
-    alignItems: "center",
-    borderTopLeftRadius: 15,
-    borderTopRightRadius: 15,
-    elevation: 5,
-  },
-
   textLogin: {
     color: "#fff",
-    fontSize: 20,
+    fontSize: normalize(18),
     fontWeight: "bold",
-    marginTop: 5,
+  },
+  pickerWrapper: {
+    width: "100%",
+    height: normalize(50),
+    backgroundColor: "#fff",
+    borderRadius: 8,
+    justifyContent: "center",
+    marginBottom: 30,
+    borderWidth: 1,
+    borderColor: '#ddd',
+  },
+  picker: {
+    width: "100%",
+    color: "#555",
+  },
+  btnCadastro: {
+    backgroundColor: "#e0e0e0",
+    paddingVertical: normalize(12),
+    paddingHorizontal: 25,
+    borderRadius: 8,
+    marginBottom: 40,
+    width: '50%',
+    alignItems: 'center',
+    justifyContent: 'center'
+  },
+  textCadastro: {
+    color: "#333",
+    fontSize: normalize(15),
+    fontWeight: "600",
+  },
+  bottomContainer: {
+    marginTop: 'auto',
+    marginBottom: 20,
+  },
+  textFooter: {
+    color: "#999",
+    fontSize: normalize(12),
+    textAlign: "center",
   },
 });
-

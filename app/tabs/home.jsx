@@ -1,118 +1,174 @@
 // ===== Importações =====
 import { collection, getDocs, query, where } from "firebase/firestore";
 import { useContext, useEffect, useState } from "react";
-import { Dimensions, Image, StyleSheet, Text, View } from "react-native";
+import {
+  ActivityIndicator,
+  Dimensions,
+  Image,
+  PixelRatio,
+  StatusBar,
+  StyleSheet,
+  Text,
+  View
+} from "react-native";
 import Carousel from "react-native-reanimated-carousel";
 import { AppContext } from "../../src/Data/contextApi";
-import { db, storage } from "../../src/Data/FirebaseConfig";
+import { db } from "../../src/Data/FirebaseConfig";
 
-
-// Captura a largura da tela do dispositivo
-const { width } = Dimensions.get("window");
+// Configurações de responsividade
+const { width, height } = Dimensions.get("window");
+const scale = width / 375;
+const normalize = (size) => Math.round(PixelRatio.roundToNearestPixel(size * scale));
 
 export default function Home() {
-  // === Estado para armazenar as URLs das imagens ===
   const [dataImg, setDataImg] = useState([]);
-
-  const {userContext} = useContext(AppContext);
-  
-
-  // === useEffect roda assim que o componente é montado ===
- 
+  const [loading, setLoading] = useState(true);
+  const { userContext } = useContext(AppContext);
 
   useEffect(() => {
-
-     console.log("userContext no home", userContext.id)  
     const loadImages = async () => {
+      if (!userContext?.branchId) return;
+      
       try {
-
-        const storage =  query(collection(db, "events"), where("branchId", "==", userContext.branchId));
-        const dataRef =   await (getDocs(storage)) ;
+        const q = query(
+          collection(db, "events"), 
+          where("branchId", "==", userContext.branchId)
+        );
         
-        let result = [] ;
-
-          dataRef.forEach((data)=> {
-          result.push(data.data().banner);
-          setDataImg(result);
-        })
+        const querySnapshot = await getDocs(q);
+        let result = [];
         
+        querySnapshot.forEach((doc) => {
+          if (doc.data().banner) {
+            result.push(doc.data().banner);
+          }
+        });
+        
+        setDataImg(result);
       } catch (error) {
         console.log("❌ Erro ao carregar imagens:", error);
+      } finally {
+        setLoading(false);
       }
     };
 
-    
-   if (storage) loadImages();
-  }, []); // O array vazio faz o efeito rodar só uma vez (ao abrir a tela)
+    loadImages();
+  }, [userContext?.branchId]);
 
-  // === Renderização do componente ===
   return (
-    <View style={{ flex: 1, backgroundColor: "#fff" }}>
-      {dataImg.length > 0 ? (
-        // Quando há imagens carregadas, mostra o carrossel
-        <Carousel
-          // O carrossel recebe o array de URLs das imagens
-          data={dataImg}
-
-          // Define como cada item será renderizado
-          renderItem={({ item }) => (
-            <View style={styles.itemContainer}>
-              <Image
-                // "item" é uma URL, então passamos ela no objeto { uri: item }
-                source={{ uri: item }}
-                style={styles.image}
-              />
-            </View>
-          )}
-
-          // Define o tamanho de cada item
-          width={width}
-          height={570}
-
-          // Espaçamento e aparência
-          style={{ marginTop: 20 }}
-
-          // Faz o carrossel repetir infinitamente
-          loop
-
-          // Faz as imagens trocarem automaticamente
-          autoPlay
-
-          // Duração da animação entre as imagens (em milissegundos)
-          scrollAnimationDuration={2000}
-        />
+    <View style={styles.mainContainer}>
+      <StatusBar barStyle="dark-content" transparent backgroundColor="transparent" />
+      
+      {loading ? (
+        <View style={styles.centerContainer}>
+          <ActivityIndicator size="large" color="#000" />
+          <Text style={styles.loadingText}>Buscando novidades...</Text>
+        </View>
+      ) : dataImg.length > 0 ? (
+        <View style={styles.carouselWrapper}>
+          <Carousel
+            loop
+            autoPlay
+            autoPlayInterval={5000}
+            scrollAnimationDuration={1500}
+            width={width}
+            height={height * 0.7} // Ocupa 70% da altura da tela de forma proporcional
+            data={dataImg}
+            renderItem={({ item }) => (
+              <View style={styles.itemContainer}>
+                <Image
+                  source={{ uri: item }}
+                  style={styles.image}
+                  resizeMode="cover"
+                />
+                {/* Overlay degradê suave opcional pode ser adicionado aqui */}
+              </View>
+            )}
+          />
+          
+          {/* Indicador visual ou mensagem inferior */}
+          <View style={styles.welcomeSection}>
+            <Text style={styles.welcomeTitle}>Bem-vindo!</Text>
+            <Text style={styles.welcomeSubtitle}>
+              Fique por dentro de tudo que acontece na sua igreja.
+            </Text>
+          </View>
+        </View>
       ) : (
-        // Caso ainda não tenha imagens, mostra uma tela de "carregando"
-        <View style={styles.loadingContainer}>
-          <Text style={styles.loadingText}>Carregando imagens...</Text>
+        <View style={styles.centerContainer}>
+          <Image 
+            source={{ uri: 'https://cdn-icons-png.flaticon.com/512/3342/3342137.png' }} 
+            style={styles.emptyIcon}
+          />
+          <Text style={styles.emptyText}>Nenhum evento no momento.</Text>
         </View>
       )}
     </View>
   );
 }
 
-// ===== Estilos =====
 const styles = StyleSheet.create({
-  itemContainer: {
+  mainContainer: {
     flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    backgroundColor: "#fff",
-    borderRadius: 10,
-    overflow: "hidden",
+    backgroundColor: "#F8F9FB",
+  },
+  carouselWrapper: {
+    flex: 1,
+  },
+  itemContainer: {
+    width: width,
+    height: height * 0.7,
+    backgroundColor: "#EEE",
+    // Sombras para dar profundidade
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.3,
+    shadowRadius: 20,
   },
   image: {
     width: "100%",
     height: "100%",
-    resizeMode: "cover", // A imagem preenche o container mantendo proporção
   },
-  loadingContainer: {
+  welcomeSection: {
+    padding: normalize(20),
+    backgroundColor: '#F8F9FB',
+    borderTopLeftRadius: 30,
+    borderTopRightRadius: 30,
+    marginTop: -30, // Sobrepõe o carrossel para um efeito moderno
+    flex: 1,
+  },
+  welcomeTitle: {
+    fontSize: normalize(24),
+    fontWeight: "800",
+    color: "#1A1A1A",
+    marginBottom: 5,
+  },
+  welcomeSubtitle: {
+    fontSize: normalize(14),
+    color: "#666",
+    lineHeight: normalize(20),
+  },
+  centerContainer: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
+    padding: 20,
   },
   loadingText: {
-    fontSize: 18,
-    color: "#777",
+    marginTop: 15,
+    fontSize: normalize(14),
+    color: "#999",
+    fontWeight: "500",
+  },
+  emptyIcon: {
+    width: 100,
+    height: 100,
+    opacity: 0.2,
+    marginBottom: 20,
+  },
+  emptyText: {
+    fontSize: normalize(16),
+    color: "#BBB",
+    textAlign: "center",
   },
 });

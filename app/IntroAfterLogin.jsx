@@ -1,6 +1,9 @@
 import { useRouter } from "expo-router";
-import { useEffect, useRef, useState } from "react";
+import { useContext, useEffect, useRef, useState } from "react";
 import { Animated, StyleSheet, View } from "react-native";
+import { AppContext } from "../src/Data/contextApi";
+import { getItem } from "../src/Data/storage";
+
 
 const images = [
   require("./img/pomba.png"),
@@ -12,8 +15,16 @@ export default function IntroAfterLogin() {
   const router = useRouter();
   const [index, setIndex] = useState(0);
   const fadeAnim = useRef(new Animated.Value(1)).current;
+  const {userContext} = useContext(AppContext)
 
   useEffect(() => {
+
+    const uidGetAsyncStorage = getItem("uid"); 
+
+    if (uidGetAsyncStorage == "" || uidGetAsyncStorage == undefined ) {
+      return router.back("/")
+    }
+
     const interval = setInterval(() => {
       Animated.sequence([
         Animated.timing(fadeAnim, {

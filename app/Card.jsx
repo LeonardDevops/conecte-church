@@ -1,118 +1,168 @@
 import { useContext } from "react";
-import { Image, StyleSheet, Text, View } from 'react-native';
+import { Dimensions, Image, PixelRatio, StyleSheet, Text, View } from 'react-native';
 import { AppContext } from "../src/Data/contextApi";
 
+const { width } = Dimensions.get("window");
 
-export default function Card(params) {
+// Função para escalonamento responsivo
+const scale = width / 375;
+const normalize = (size) => Math.round(PixelRatio.roundToNearestPixel(size * scale));
 
-    
-    
-    
-    
-    const { userContext } = useContext(AppContext) 
-    // const { name:name } = userContext.churchesPr;
-    
-    
-    console.log(userContext)
+export default function Card() {
+    const { userContext } = useContext(AppContext);
+
     return (
         <View style={styles.content}>
-
-            <View style={styles.container}>
-
-                <View style={styles.nome}>
-                    <Text style={styles.title}>Nome: {userContext?.name}</Text>
+            <View style={styles.cardContainer}>
+                
+                {/* Cabeçalho do Card com Faixa de Destaque */}
+                <View style={styles.headerCard}>
+                    <View style={styles.headerInfo}>
+                        <Text style={styles.orgName}>Ministério Tálamo</Text>
+                        <Text style={styles.cardType}>MEMBRO</Text>
+                    </View>
+                    <Image style={styles.logoImg} source={require('./img/meta.webp')} />
                 </View>
-                <Text style={styles.title}>Data Nascimento: {userContext?.birthDate}</Text>
-                <Text style={styles.title}>Phone:{userContext?.phone}</Text>
-                <Text style={styles.title}></Text>
-                <View style={styles.logo}>
 
-                    <Text style={styles.rodape}></Text>
-                    <Image style={styles.logoimg} source={require('./img/meta.webp')} />
+                {/* Corpo de Dados */}
+                <View style={styles.bodyCard}>
+                    <View style={styles.dataRow}>
+                        <View style={styles.dataColumn}>
+                            <Text style={styles.label}>NOME COMPLETO</Text>
+                            <Text style={styles.value}>{userContext?.name || "---"}</Text>
+                        </View>
+                    </View>
+
+                    <View style={styles.gridRow}>
+                        <View style={styles.dataColumn}>
+                            <Text style={styles.label}>NASCIMENTO</Text>
+                            <Text style={styles.value}>{userContext?.birthDate || "---"}</Text>
+                        </View>
+                        <View style={styles.dataColumn}>
+                            <Text style={styles.label}>TIPO SANGUÍNEO</Text>
+                            <Text style={[styles.value, { color: '#ff4d4d' }]}>{userContext?.tsg || "---"}</Text>
+                        </View>
+                    </View>
+
+                    <View style={styles.dataRow}>
+                        <View style={styles.dataColumn}>
+                            <Text style={styles.label}>CONTATO</Text>
+                            <Text style={styles.value}>{userContext?.phone || "---"}</Text>
+                        </View>
+                    </View>
+
+                    {/* Rodapé Interno com Atribuição */}
+                    <View style={styles.footerInfo}>
+                        <View>
+                            <Text style={styles.labelDark}>ATRIBUIÇÃO / CARGO</Text>
+                            <Text style={styles.valueDark}>{userContext?.atribuicao || "Membro"}</Text>
+                        </View>
+                    </View>
                 </View>
-                <Text style={styles.titleAtribuicao}>Atribuicao:{userContext?.atribuicao}</Text>
-                <Text style={styles.title}>Tipo Sanguíneo:{userContext?.tsg}</Text>
-                <Text style={styles.target}>{}</Text>
+
             </View>
-
         </View>
     );
 }
 
 const styles = StyleSheet.create({
-    container: {
-        zIndex:3,
-        borderRadius: 8,
-        backgroundColor: '#000000e7',
-        width: '98%',
-        height: 250,
-        shadowColor: '#000',
-        shadowOffset: {
-            borderColor: '#000000f5',
-        },
-        shadowOpacity: 0.2,
-        shadowRadius: 4,
-        elevation: 5,
-    },
-    title: {
-        fontSize: 20,
-        fontWeight: 'bold',
-        color: '#fff',
-        width: '96%',
-        marginLeft: 10,
-    },
     content: {
         flex: 1,
-        width: '100%',
-        height: '100%',
+        backgroundColor: '#f0f0f0',
         justifyContent: 'center',
         alignItems: 'center',
+        padding: normalize(15)
+    },
+    cardContainer: {
+        width: '100%',
+        maxWidth: 400,
+        height: normalize(230),
+        backgroundColor: '#1a1a1a',
+        borderRadius: 15,
+        overflow: 'hidden',
+        elevation: 8,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.3,
+        shadowRadius: 5,
+    },
+    headerCard: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        backgroundColor: '#000',
+        paddingHorizontal: normalize(15),
+        paddingVertical: normalize(10),
+        borderBottomWidth: 2,
+        borderBottomColor: '#333'
+    },
+    headerInfo: {
+        flex: 1
+    },
+    orgName: {
+        color: '#fff',
+        fontSize: normalize(14),
+        fontWeight: 'bold',
+        letterSpacing: 1
+    },
+    cardType: {
+        color: '#aaa',
+        fontSize: normalize(10),
+        fontWeight: '600'
+    },
+    logoImg: {
+        width: normalize(45),
+        height: normalize(45),
+        borderRadius: 5,
         backgroundColor: '#fff'
     },
-    nome: {
+    bodyCard: {
+        flex: 1,
+        padding: normalize(12),
+        justifyContent: 'space-between'
+    },
+    gridRow: {
         flexDirection: 'row',
-
-        justifyContent: 'center',
+        justifyContent: 'space-between',
+        marginBottom: normalize(8)
+    },
+    dataRow: {
+        marginBottom: normalize(8)
+    },
+    dataColumn: {
+        flexDirection: 'column'
+    },
+    label: {
+        color: '#777',
+        fontSize: normalize(9),
+        fontWeight: 'bold',
+        marginBottom: 2
+    },
+    value: {
+        color: '#fff',
+        fontSize: normalize(13),
+        fontWeight: '600',
+        textTransform: 'uppercase'
+    },
+    footerInfo: {
+        backgroundColor: '#e2dfdf',
+        marginHorizontal: normalize(-12),
+        marginBottom: normalize(-12),
+        padding: normalize(3),
+        flexDirection: 'row',
+        justifyContent: 'space-between',
         alignItems: 'center'
-
     },
-    logo: {
-        width: '100%',
-        height: 50,
-        flexDirection: 'row',
-        justifyContent: 'flex-end',
-        alignItems: 'center',
-        backgroundColor: "#e2dfdfe7",
-        borderColor: '#000000ff',
-        borderWidth: 2
-
-
-    },
-    logoimg: {
-        width: 55,
-        height: 42,
-        backgroundColor: "#ffffffff"
-
-    },
-    titleAtribuicao: {
-        color: '#ffffffff',
-        fontSize: 20,
+    labelDark: {
+        color: '#444',
+        fontSize: normalize(8),
         fontWeight: 'bold',
-        marginLeft: 10
-
-
     },
-    target: {
-        fontSize: 15,
+    valueDark: {
+        color: '#000',
+        fontSize: normalize(12),
         fontWeight: 'bold',
-        marginLeft: 160,
-        marginTop: 10,
-        color: '#e6e6e6ff'
-    },
-
-    rodape: {
-        fontSize: 20,
-        fontWeight: 'bold',
-        color: '#ffffffe7',
+        textTransform: 'uppercase',
+        marginLeft:"5%"
     }
 });

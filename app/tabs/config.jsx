@@ -1,7 +1,3 @@
-// Versão responsiva do seu arquivo Config.js
-// Mantive toda sua lógica, só adicionei responsividade real usando Dimensions e porcentagens.
-// Nada funcional foi alterado.
-
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import * as ImagePicker from 'expo-image-picker';
@@ -9,89 +5,78 @@ import { useRouter } from "expo-router";
 import { doc, getDoc, updateDoc } from "firebase/firestore";
 import { getDownloadURL, getStorage, ref, uploadBytes } from "firebase/storage";
 import { useContext, useEffect, useState } from "react";
-import { Alert, Dimensions, Image, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
+import {
+  Alert,
+  Dimensions,
+  Image,
+  PixelRatio,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View
+} from "react-native";
 import { MaskedTextInput } from "react-native-mask-text";
 import { db } from "../../src/Data/FirebaseConfig";
 import { AppContext } from "../../src/Data/contextApi";
 
 const { width, height } = Dimensions.get("window");
 
+// Função auxiliar para escalar fontes e tamanhos proporcionalmente
+const scale = width / 375; 
+const normalize = (size) => {
+  const newSize = size * scale;
+  return Math.round(PixelRatio.roundToNearestPixel(newSize));
+};
+
 export default function Config() {
- 
   const router = useRouter();
+
   const [image, setImage] = useState(null);
   const [edit, setEdit] = useState(false);
-  const [nome , setNome] = useState();
+  const [nome, setNome] = useState();
   const [tsg, setTsg] = useState();
   const [dataNascimento, setDataNascimento] = useState();
-  const [celular, setCelular] = useState(); 
+  const [celular, setCelular] = useState();
   const [atribuicao, setAtribuicao] = useState();
   const [searchUser, setSearchUser] = useState('');
 
   const [usuarios, setusuarios] = useState([]);
-  const [userId , setUserId] = useState(false);
-  const [img , setImg] = useState(false);
+  const [userId, setUserId] = useState(false);
+  const [img, setImg] = useState(false);
   const [imgID, setImgID] = useState(false);
-  const [cart, setCart] = useState(false); 
+  const [cart, setCart] = useState(false);
   const [loading, setLoading] = useState();
 
-  const { setUserContext , userContext} = useContext(AppContext);
+  const { setUserContext, userContext } = useContext(AppContext);
 
   useEffect(() => {
-
-    
     const fetchData = async () => {
-      
-    
-      try {
-      const querySnapshot = doc(db,'users',userContext.id);
+      const querySnapshot = doc(db, 'users', userContext.id);
       const dataSnapp = await getDoc(querySnapshot);
+      if (!dataSnapp.exists()) return;
 
-      if (!dataSnapp.exists()) {
-        console.log('Usuário nao encontrado');
-        
-        return;}
-
-        
-          const user = dataSnapp.data();
-          setUserId(dataSnapp.id);
-          setLoading(dataSnapp.id);
-          setusuarios(user);
-          setNome(user.name);
-          setImgID(true);
-          setDataNascimento(user.birthDate);
-          setCelular(user.phone);
-          setTsg(user.tsg);
-          setAtribuicao(user.atribuicao);
-          setSearchUser({emailInput: user.email});
-          setUserContext(...userContext,{userCard:[user]})
-     
-          console.log("testando copia do userContext", context)
-      
-      } catch (error) {
-
-        console.log('Erro ao buscar usuário:', error);
-
-      }
+      const user = dataSnapp.data();
+      setUserId(dataSnapp.id);
+      setNome(user.name);
+      setDataNascimento(user.birthDate);
+      setCelular(user.phone);
+      setTsg(user.tsg);
+      setAtribuicao(user.atribuicao);
     }
     fetchData();
-
-    console.log(userId, ' ID do usuario no config');
-
   }, [userContext.id]);
 
-
-  // funcao para escolher a imagem da galeria e fazer upload para o firebase storage
-
   const pickImage = async () => {
-    if (!userId) return console.log("ID do usuário ainda não carregado!");
+    if (!userId) return;
 
     let result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ['images'],
       allowsEditing: true,
-      aspect: [4, 3],
+      aspect: [4, 4],
       quality: 1,
-    })
+    });
 
     if (result.canceled) return;
 
@@ -102,208 +87,214 @@ export default function Config() {
     const storageRef = ref(storage, `perfilUsers/image:${userId}`);
 
     await uploadBytes(storageRef, blob);
-    Alert.alert('Sucesso', 'Imagem de perfil atualizada com sucesso!');
-    setImage(result.assets[0].uri);
-    setUserId(true);
+    const url = await getDownloadURL(storageRef);
+    setImage(url);
     setImg(true);
   };
 
-// funcao para carregar a imagem do firebase storage
   useEffect(() => {
     async function fetchImage() {
-      const storage = getStorage();
-      const storageRef = ref(storage, `perfilUsers/image:${userId}`);
-
       try {
+        const storage = getStorage();
+        const storageRef = ref(storage, `perfilUsers/image:${userId}`);
         const url = await getDownloadURL(storageRef);
         setImage(url);
         setImg(true);
-        setImgID(true);
-        
-      } catch (error) {
-        console.log('Nenhuma imagem de perfil encontrada.');
-      }
-    };
-     if(userId) fetchImage();
-    
+      } catch { }
+    }
+    if (userId) fetchImage();
   }, [userId]);
 
-
- // funcao pra navegar pra carteirinha
   function goCard() {
     router.push('/Card');
   }
 
-
- // funcao para editar os dados do usuario
-  async function editar(){
+  async function editar() {
     if (!edit) {
       setEdit(true);
     } else {
-     
-      
-      const query =  doc(db, 'users', userId);
-      const querySnapshot =  await getDoc(query);
-
-     
-          await updateDoc(doc(db, 'users', userId), {
-            name: nome,
-            birthDate: dataNascimento,
-            phone: celular,
-            tsg: tsg,
-            atribuicao: atribuicao
-          });
-     
-      Alert.alert('Sucesso', 'Dados atualizados com sucesso!');
+      await updateDoc(doc(db, 'users', userId), {
+        name: nome,
+        birthDate: dataNascimento,
+        phone: celular,
+        tsg: tsg,
+        atribuicao: atribuicao
+      });
+      Alert.alert('Sucesso', 'Dados atualizados!');
       setEdit(false);
-    
     }
   }
 
-
   return (
-    <ScrollView style={{ flex: 1 }}>
-    <View style={styles.body}>
+    <ScrollView style={{ flex: 1, backgroundColor: '#eee' }} contentContainerStyle={{ paddingBottom: 30 }}>
 
-      <View style={styles.viewProfile}>
-        <Text style={styles.nome}>{nome}</Text>
-
-        <View style={{ width: "50%" }}>
-          {img ? (
-            <Image style={styles.foto} source={{ uri: image }} />
-          ) : (
-            <TouchableOpacity style={styles.foto} onPress={pickImage}>
-              <MaterialIcons name="add-a-photo" size={40} color="#000000" />
-            </TouchableOpacity>
-          )}
+      {/* HEADER */}
+      <View style={styles.header}>
+        <View style={styles.nameCard}>
+          <Text style={styles.nameText}>{nome}</Text>
         </View>
-      </View>
 
-      <View style={{ width: "100%", alignItems: "center", justifyContent: "space-around", flexDirection: "row", marginTop: "2%" }}>
-        <TouchableOpacity onPress={goCard} style={styles.btnCard}>
-          <FontAwesome name="vcard" size={20} color="#fff" />
-        </TouchableOpacity>
-
-        <TouchableOpacity onPress={editar} style={!edit ? styles.btnEdit : styles.btnSalvar}>
-          <Text style={{ color:'#fff', fontWeight:'bold' }}>{!edit ? 'Editar' : 'Salvar'}</Text>
+        <TouchableOpacity style={styles.avatarWrapper} onPress={pickImage}>
+          {img ? (
+            <Image source={{ uri: image }} style={styles.avatar} />
+          ) : (
+            <MaterialIcons name="add-a-photo" size={normalize(30)} color="#000" />
+          )}
         </TouchableOpacity>
       </View>
 
-      <Text>Nome</Text>
-      <TextInput editable={edit} value={nome} onChangeText={setNome} style={styles.inputText} />
+      {/* BOTÕES */}
+      <View style={styles.buttonsRow}>
+        <TouchableOpacity style={styles.btnGray} onPress={goCard}>
+          <FontAwesome name="id-card" size={normalize(18)} color="#fff" />
+          <Text style={styles.btnText}>Meus Dados</Text>
+        </TouchableOpacity>
 
-      <Text>Data Nascimento</Text>
-      <MaskedTextInput mask='99/99/9999' keyboardType='numeric' value={dataNascimento} onChangeText={setDataNascimento} editable={edit} style={styles.inputText} />
+        <TouchableOpacity style={styles.btnBlue} onPress={editar}>
+          <MaterialIcons name="edit" size={normalize(18)} color="#fff" />
+          <Text style={styles.btnText}>{edit ? 'Salvar' : 'Editar'}</Text>
+        </TouchableOpacity>
+      </View>
 
-      <Text>Celular</Text>
-      <MaskedTextInput mask='(99) 99999-9999' keyboardType='numeric' value={celular} onChangeText={setCelular} editable={edit} style={styles.inputText} />
+      {/* FORMULÁRIO */}
+      <View style={styles.form}>
+        <Label text="Nome" />
+        <Input icon="person" value={nome} editable={edit} onChangeText={setNome} />
 
-      <Text>Tipo Sanguineo</Text>
-      <TextInput editable={edit} value={tsg} onChangeText={setTsg} style={styles.inputText} />
+        <Label text="Data Nascimento" />
+        <Input icon="calendar-today" value={dataNascimento} editable={edit} mask="99/99/9999" onChangeText={setDataNascimento} />
 
-      <Text>Atribuição</Text>
-      <TextInput editable={edit} value={atribuicao} onChangeText={setAtribuicao} style={styles.inputText} />
+        <Label text="Celular" />
+        <Input icon="phone" value={celular} editable={edit} mask="(99) 99999-9999" onChangeText={setCelular} />
 
-    </View>
+        <Label text="Tipo Sanguíneo" />
+        <Input icon="opacity" value={tsg} editable={edit} onChangeText={setTsg} />
+
+        <Label text="Atribuição" />
+        <Input icon="label" value={atribuicao} editable={edit} onChangeText={setAtribuicao} />
+      </View>
+
     </ScrollView>
   );
 }
 
+/* COMPONENTES AUXILIARES (VISUAL) */
+const Label = ({ text }) => (
+  <Text style={styles.label}>{text}</Text>
+);
+
+const Input = ({ icon, mask, ...props }) => (
+  <View style={styles.inputCard}>
+    <MaterialIcons name={icon} size={normalize(20)} color="#777" />
+    {mask ? (
+      <MaskedTextInput {...props} mask={mask} style={styles.input} />
+    ) : (
+      <TextInput {...props} style={styles.input} />
+    )}
+  </View>
+);
 
 const styles = StyleSheet.create({
-  body: {
-    justifyContent: 'center',
+  header: {
+    backgroundColor: '#000',
     alignItems: 'center',
-    paddingBottom: 50,
-    width:'100%'
+    paddingTop: height * 0.02,
+    paddingBottom: height * 0.08, 
+    width: '100%',
+    marginTop:height * 0.001
+    }
+    ,
+  nameCard: {
+    borderRadius: 10,
+    width: '98%',
+    justifyContent: "center",
+    alignItems: "center",
+    marginBottom: height * 0.01,
+    marginTop: height * 0.01,
   },
-
-  inputText:{
-    height: 50,
-    borderColor: "gray",
-    borderWidth: 1,
-    marginBottom: 20,
-    fontSize: width * 0.04,
-    width:'90%',
-    color:'#000',
-    backgroundColor:'#fff',
-    borderRadius:10,
-    paddingHorizontal: 10,
-    marginTop:"1.5%"
+  nameText: {
+    color: '#fff',
+    fontSize: normalize(16),
+    fontWeight: '400'
   },
-
-  foto:{
-    width: width * 0.22,
-    height: width * 0.22,
-    borderRadius: width * 0.14,
-    backgroundColor:'#fff',
-    justifyContent:'center',
-    alignItems:'center',
-    borderColor:'#fff',
-    borderWidth:1,
-    marginRight: width * 0.05
-  },
-
-  nome:{
-    fontSize: width * 0.05,
-    fontWeight:'bold',
-    padding:7,
-    width:'81%',
-    color:'#fff',
-    shadowOpacity: 1,
-    boxShadow: '0px 2px 0px #ffffffa6',
+  avatarWrapper: {
+    position: 'absolute',
+    bottom: -normalize(45), // Metade da altura do avatar para ficar centralizado na linha do header
+    backgroundColor: '#fff',
+    borderRadius: normalize(50),
+    padding: 3,
     elevation: 5,
-    backgroundColor:'rgba(7, 7, 7, 1)',
-    borderRadius:5
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
   },
-
-  viewProfile:{
-    width:"100%",
-    height: height * 0.15,
-    backgroundColor:"#000",
-    justifyContent:'space-between',
-    alignItems:"center",
-    flexDirection:"row",
+  avatar: {
+    width: normalize(90),
+    height: normalize(90),
+    borderRadius: normalize(45)
+  },
+  buttonsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: normalize(50), // Compensa o avatar que está por cima
     paddingHorizontal: width * 0.05,
-    marginBottom:10,
-    marginTop:4,
-    borderBottomLeftRadius:10,
-    borderBottomRightRadius:10,
-    elevation:5
   },
-
-  btnCard:{
-    borderRadius:10,
-    borderColor:'#fff',
-    borderWidth:1,
-    backgroundColor:'#3a3a3a',
-    elevation:5,
-    padding:10,
-    width:'45%',
-    alignItems:'center'
+  btnGray: {
+    flexDirection: 'row',
+    gap: 8,
+    alignItems: 'center',
+    backgroundColor: '#444',
+    paddingVertical: normalize(12),
+    borderRadius: 10,
+    width: '47%',
+    justifyContent: 'center'
   },
-
-  btnEdit:{
-    padding:11,
-    width:'45%',
-    justifyContent:'center',
-    alignItems:'center',
-    borderRadius:10,
-    borderColor:'#fff',
-    borderWidth:1,
-    backgroundColor:'#3a3a3a',
-    elevation:5,
+  btnBlue: {
+    flexDirection: 'row',
+    gap: 8,
+    alignItems: 'center',
+    backgroundColor: '#3b6cb7',
+    paddingVertical: normalize(12),
+    borderRadius: 10,
+    width: '47%',
+    justifyContent: 'center'
   },
-
-  btnSalvar:{
-    padding:11,
-    width:'45%',
-    justifyContent:'center',
-    alignItems:'center',
-    borderRadius:10,
-    borderColor:'#fff',
-    borderWidth:1,
-    backgroundColor:'#2e2e2e',
-    elevation:5,
+  btnText: {
+    color: '#fff',
+    fontWeight: 'bold',
+    fontSize: normalize(14)
+  },
+  form: {
+    paddingHorizontal: width * 0.05,
+  },
+  label: {
+    textAlign: 'left', // Alinhado à esquerda costuma ser melhor para mobile, mas mantive a estrutura
+    paddingLeft: 5,
+    marginTop: normalize(15),
+    marginBottom: 5,
+    color: '#444',
+    fontSize: normalize(14),
+    fontWeight: '600'
+  },
+  inputCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    paddingHorizontal: 15,
+    height: normalize(45), // Altura fixa normalizada para inputs
+    elevation: 2,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+  },
+  input: {
+    flex: 1,
+    marginLeft: 10,
+    fontSize: normalize(15),
+    color: '#333',
+    height: '100%'
   }
 });
