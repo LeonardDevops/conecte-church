@@ -174,6 +174,7 @@ export default function Ofertas({ navigation }) {
             <TextInput
               style={styles.valorInput}
               placeholder="0,00"
+              placeholderTextColor={"#686666"}
               keyboardType="numeric"
               value={valor}
               onChangeText={setValor}
@@ -185,6 +186,7 @@ export default function Ofertas({ navigation }) {
           <TextInput
             style={styles.descricaoInput}
             placeholder="Ex: Gratidão pela família"
+            placeholderTextColor={"#686666"}
             value={descricao}
             onChangeText={setDescricao}
             editable={!qrGenerated}

@@ -82,6 +82,31 @@ export default function RootLayout() {
             title: "",
           }}
           />
+        <Stack.Screen
+          name="Forms"
+          options={{
+            headerTitle: "Formulario",
+            headerShown: true,
+            statusBarStyle: "light",
+            headerStyle: { backgroundColor: "#000000ff" },
+            headerTintColor: "#fff",
+            headerTitleStyle: { fontWeight: "bold" },
+            title: "",
+          }}
+          />
+        <Stack.Screen
+          name="HolyBiblie"
+          options={{
+            headerTitle: "Biblia",
+            headerShown: true,
+            statusBarStyle: "light",
+            headerStyle: { backgroundColor: "#000000ff" },
+            headerTintColor: "#fff",
+            headerTitleStyle: { fontWeight: "bold" },
+            title: "",
+          }}
+          />
+      
 
         <Stack.Screen
           name="tabs"

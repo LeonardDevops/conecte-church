@@ -102,7 +102,7 @@ export default function Login() {
               birthDate: item.data().birthDate,
               atribuicao: item.data().atribuicao || null,
               branchName: item.data().branchName,
-              isLogged: false,
+              isLogged: true,
               branchId: item.data().branchId,
               pixConfig: pixConfigData,
               pr: pr.pastor

@@ -27,8 +27,14 @@ export default function Menu() {
   const { setUserContext } = useContext(AppContext);
 
   function redirect(params) {
-    setUserContext('');
-    router.back('/Login');
+    setUserContext({
+         id: null,
+         email: null,
+         churches: [],
+         isLogged: false,
+         pixConfig:[]
+    });
+    router.replace('/');
     clearAll('user');
   }
 
@@ -43,6 +49,15 @@ export default function Menu() {
   function goEventos(params) {
     router.push('/eventos');
   }
+  function goHolyBiblie(params) {
+    router.push('/HolyBiblie');
+  }
+
+  function goForms(params) {
+    router.push('/Forms');
+  }
+  
+
 
   return (
     <ScrollView contentContainerStyle={styles.scrollContainer} bounces={false}>
@@ -58,19 +73,19 @@ export default function Menu() {
         </TouchableOpacity>
 
         {/* Carteirinha */}
-        <TouchableOpacity onPress={goCard} style={styles.buttonDisable}>
-          <FontAwesome name="id-card" size={normalize(28)} color="#ddd" />
+        <TouchableOpacity onPress={goCard} style={styles.button}>
+          <FontAwesome name="id-card" size={normalize(28)} color="#000000" />
           <Text style={styles.text}>Carteirinha</Text>
         </TouchableOpacity>
 
         {/* PlayList */}
-        <TouchableOpacity style={styles.buttonDisable}>
+        <TouchableOpacity style={styles.button}>
           <Entypo name="google-play" size={normalize(28)} color="#ca0b0b" />
           <Text style={styles.text}>PlayList</Text>
         </TouchableOpacity>
 
         {/* Palavra do Dia */}
-        <TouchableOpacity style={styles.button}>
+        <TouchableOpacity onPress={goHolyBiblie} style={styles.button}>
           <FontAwesome5 name="bible" size={normalize(28)} color="#b35f11" />
           <Text style={styles.text}>Palavra do Dia</Text>
         </TouchableOpacity>
@@ -82,8 +97,8 @@ export default function Menu() {
         </TouchableOpacity>
 
         {/* Formulario */}
-        <TouchableOpacity style={styles.buttonDisable}>
-          <Ionicons name="document-text" size={normalize(28)} color="#fff" />
+        <TouchableOpacity onPress={goForms} style={styles.button}>
+          <Ionicons name="document-text" size={normalize(28)} color="#575757" />
           <Text style={styles.text}>Formulario</Text>
         </TouchableOpacity>
 

@@ -134,13 +134,13 @@ export default function Work() {
               dropdownIconColor="#000"
               mode="dropdown"
             >
-              <Picker.Item label='Selecione uma opção...' value='' color="#999" />
+              <Picker.Item label='Selecione uma opção...' value='' color="#ffffff" />
               {listaGrupos.map((item) => (
                 <Picker.Item
                   key={item.id}
                   label={item.taskOption}
                   value={item.id}
-                  color="#000"
+                  color="#c9c9c9"
                 />
               ))}
             </Picker>
