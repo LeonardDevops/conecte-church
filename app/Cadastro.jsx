@@ -15,40 +15,51 @@ import { MaskedTextInput } from "react-native-mask-text";
 import { AppContext } from "../src/Data/contextApi";
 
 import { createUserWithEmailAndPassword } from "firebase/auth";
-import { doc, serverTimestamp, setDoc } from "firebase/firestore";
+import { collection, doc, getDocs, query, serverTimestamp, setDoc, where } from "firebase/firestore";
 import { auth, db } from "../src/Data/FirebaseConfig";
 
 const { width, height } = Dimensions.get("window");
 
 export default function Cadastro() {
   const { userContext } = useContext(AppContext);
+  const route = useRouter();
 
   const [churches, setChurches] = useState([]);
   const [loading, setLoading] = useState(false);
-
-  const route = useRouter();
 
   const [nome, setNome] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [nascimento, setNascimento] = useState("");
   const [selectedBranchId, setSelectedBranchId] = useState("");
-  
 
-  // ✅ CORREÇÃO PRINCIPAL
+  // ✅ BUSCA AS FILIAIS DIRETAMENTE CASO NÃO ESTEJAM NO CONTEXTO
   useEffect(() => {
-    
-      const dataChurchs = userContext?.branches
-      if (dataChurchs == undefined) return; 
-        
-        let branchesData =[]
-        dataChurchs.forEach(data => {
-          branchesData.push(data);
-        });
-        
-        setChurches(branchesData);
-        
-        
+    const fetchBranches = async () => {
+      // Se o contexto já tiver as igrejas, usamos ele, senão buscamos no banco
+      if (userContext?.churches && userContext.churches.length > 0) {
+        setChurches(userContext.churches);
+      } else {
+        try {
+          const q = query(collection(db, "branches"), where("status", "==", "active"));
+          const querySnapshot = await getDocs(q);
+          const branchesData = [];
+          querySnapshot.forEach((doc) => {
+            branchesData.push({
+              branchId: doc.id,
+              branchName: doc.data().name,
+              churchId: doc.data().churchId || "default", // ajuste conforme seu banco
+              churchName: "Ministério Evangelistico Tálamo", // fixo ou do banco
+            });
+          });
+          setChurches(branchesData);
+        } catch (error) {
+          console.error("Erro ao carregar filiais:", error);
+        }
+      }
+    };
+
+    fetchBranches();
   }, [userContext]);
 
   const validateEmail = (email) => {
@@ -59,36 +70,26 @@ export default function Cadastro() {
   const validateDate = (date) => {
     const regex = /^(\d{2})\/(\d{2})\/(\d{4})$/;
     if (!regex.test(date)) return false;
-
     const [, day, month, year] = date.match(regex);
     const d = parseInt(day, 10);
     const m = parseInt(month, 10);
     const y = parseInt(year, 10);
-
     if (y < 1900 || y > new Date().getFullYear()) return false;
     if (m < 1 || m > 12) return false;
-
     const lastDayOfMonth = new Date(y, m, 0).getDate();
     return d >= 1 && d <= lastDayOfMonth;
   };
 
   async function handleRegister() {
-    const branchCompleted = churches.find(
-      (b) => b.branchId === selectedBranchId
-    );
+    const branchCompleted = churches.find((b) => b.branchId === selectedBranchId);
 
-    if (!nome.trim() || !email.trim() || !password.trim() || !branchCompleted) {
-      Alert.alert("Erro", "Preencha todos os campos obrigatórios!");
+    if (!nome.trim() || !email.trim() || !password.trim() || !selectedBranchId) {
+      Alert.alert("Erro", "Preencha todos os campos e selecione uma filial!");
       return;
     }
 
     if (!validateEmail(email)) {
-      Alert.alert("Erro", "Por favor, insira um e-mail válido.");
-      return;
-    }
-
-    if (nascimento && !validateDate(nascimento)) {
-      Alert.alert("Erro", "Data de nascimento inválida.");
+      Alert.alert("Erro", "E-mail inválido.");
       return;
     }
 
@@ -100,34 +101,37 @@ export default function Cadastro() {
     setLoading(true);
 
     try {
+      // 1. Criar usuário no Firebase Auth
+      const userCredential = await createUserWithEmailAndPassword(
+        auth,
+        email.trim().toLowerCase(),
+        password
+      );
 
-      const creatdUid = await createUserWithEmailAndPassword(auth,email.trim().toLowerCase(),password)
-      console.log(creatdUid)
+      // 2. Salvar dados adicionais no Firestore
+      await setDoc(doc(db, "users", userCredential.user.uid), {
+        branchId: branchCompleted?.branchId || null,
+        branchName: branchCompleted?.branchName || null,
+        churchId: branchCompleted?.churchId || null,
+        churchName: branchCompleted?.churchName || null,
+        name: nome.trim(),
+        email: email.trim().toLowerCase(),
+        birthDate: nascimento || null,
+        status: "pending",
+        createdAt: serverTimestamp(),
+        uid: userCredential.user.uid,
+        atribuicao: "Membro", // Valor padrão
+        role:"user"
+      });
 
-  await setDoc(doc(db, "users", creatdUid.user.uid), {
-  branchId: branchCompleted?.branchId ?? null,
-  branchName: branchCompleted?.branchName ?? null,
-  churchId: branchCompleted?.churchId ?? null,
-  churchName: branchCompleted?.churchName ?? null,
-  name: nome.trim(),
-  email: creatdUid.user.email,
-  birthDate: nascimento ?? null,
-  status: "pending",
-  lastAccess: null,
-  createdAt: serverTimestamp(),
-  uid: creatdUid.user.uid,
-});
-
-
-      Alert.alert("Sucesso", "Seu cadastro foi enviado para aprovação!", [
-        { text: "OK", onPress: () => ""},
+      Alert.alert("Sucesso", "Seu cadastro foi enviado para aprovação do pastor!", [
+        { text: "OK", onPress: () => route.push("/") },
       ]);
     } catch (error) {
-      console.error("Erro ao salvar:", error);
-      Alert.alert(
-        "Erro",
-        "Não foi possível realizar o cadastro. Tente novamente."
-      );
+      console.error("Erro no cadastro:", error);
+      let mensagem = "Não foi possível realizar o cadastro.";
+      if (error.code === "auth/email-already-in-use") mensagem = "Este e-mail já está em uso.";
+      Alert.alert("Erro", mensagem);
     } finally {
       setLoading(false);
     }
@@ -182,12 +186,11 @@ export default function Cadastro() {
       <View style={styles.pickerContainer}>
         <Picker
           selectedValue={selectedBranchId}
-          onValueChange={setSelectedBranchId}
-          enabled={!loading && churches.length > 0}
+          onValueChange={(itemValue) => setSelectedBranchId(itemValue)}
+          enabled={!loading}
           style={styles.picker}
         >
-          <Picker.Item label="Selecione uma filial" value="" />
-
+          <Picker.Item label="Selecione sua igreja" value="" color="#999" />
           {churches.map((item) => (
             <Picker.Item
               key={item.branchId}
@@ -206,107 +209,90 @@ export default function Cadastro() {
         {loading ? (
           <ActivityIndicator color="#fff" />
         ) : (
-          <Text style={styles.buttonText}>Cadastrar</Text>
+          <Text style={styles.buttonText}>Enviar Cadastro</Text>
         )}
       </TouchableOpacity>
 
-      <TouchableOpacity onPress={() => route.push("/")}>
+      <TouchableOpacity onPress={() => route.push("/")} disabled={loading}>
         <Text style={styles.backButtonText}>Voltar para Login</Text>
       </TouchableOpacity>
     </View>
   );
 }
 
-
+// ... Seus estilos permanecem os mesmos ...
 const styles = StyleSheet.create({
-  containerBody: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    paddingHorizontal: width * 0.05,
-    backgroundColor: "#f5f5f5",
-  },
-
-  title: {
-    fontSize: width * 0.06,
-    fontWeight: "bold",
-    color: "#000000",
-    marginBottom: height * 0.04,
-    alignSelf: "center",
-  },
-
-  textInput: {
-    height: height * 0.06,
-    borderColor: "#ddd",
-    borderWidth: 1,
-    marginBottom: height * 0.02,
-    fontSize: width * 0.04,
-    width: "100%",
-    color: "#000",
-    backgroundColor: "#fff",
-    borderRadius: width * 0.02,
-    paddingHorizontal: width * 0.04,
-    marginTop: height * 0.01,
-  },
-
-  text: {
-    fontSize: width * 0.04,
-    fontWeight: "600",
-    color: "#333333",
-    marginBottom: height * 0.005,
-    alignSelf: "flex-start",
-  },
-
-  pickerContainer: {
-    width: "100%",
-    borderColor: "#ddd",
-    borderWidth: 1,
-    borderRadius: width * 0.02,
-    marginTop: height * 0.01,
-    marginBottom: height * 0.02,
-    backgroundColor: "#fff",
-    overflow: "hidden",
-  },
-
-  picker: {
-    height: height * 0.07,
-    width: "100%",
-    color: "#000",
-  },
-
-  button: {
-    height: height * 0.06,
-    width: "100%",
-    backgroundColor: "#000000ff",
-    justifyContent: "center",
-    alignItems: "center",
-    borderRadius: width * 0.02,
-    marginTop: height * 0.02,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 3,
-    elevation: 3,
-  },
-
-  buttonDisabled: {
-    backgroundColor: "#cccccc",
-  },
-
-  buttonText: {
-    color: "#fff",
-    fontSize: width * 0.045,
-    fontWeight: "bold",
-  },
-
-  backButton: {
-    marginTop: height * 0.02,
-    padding: width * 0.03,
-  },
-
-  backButtonText: {
-    color: "#000000ff",
-    fontSize: width * 0.04,
-    fontWeight: "500",
-  },
-});
+    containerBody: {
+      flex: 1,
+      justifyContent: "center",
+      alignItems: "center",
+      paddingHorizontal: width * 0.05,
+      backgroundColor: "#f5f5f5",
+    },
+    title: {
+      fontSize: width * 0.06,
+      fontWeight: "bold",
+      color: "#000000",
+      marginBottom: height * 0.04,
+      alignSelf: "center",
+    },
+    textInput: {
+      height: height * 0.06,
+      borderColor: "#ddd",
+      borderWidth: 1,
+      marginBottom: height * 0.02,
+      fontSize: width * 0.04,
+      width: "100%",
+      color: "#000",
+      backgroundColor: "#fff",
+      borderRadius: width * 0.02,
+      paddingHorizontal: width * 0.04,
+      marginTop: height * 0.01,
+    },
+    text: {
+      fontSize: width * 0.04,
+      fontWeight: "600",
+      color: "#333333",
+      marginBottom: height * 0.005,
+      alignSelf: "flex-start",
+    },
+    pickerContainer: {
+      width: "100%",
+      borderColor: "#ddd",
+      borderWidth: 1,
+      borderRadius: width * 0.02,
+      marginTop: height * 0.01,
+      marginBottom: height * 0.02,
+      backgroundColor: "#fff",
+      overflow: "hidden",
+    },
+    picker: {
+      height: height * 0.07,
+      width: "100%",
+      color: "#000",
+    },
+    button: {
+      height: height * 0.06,
+      width: "100%",
+      backgroundColor: "#000",
+      justifyContent: "center",
+      alignItems: "center",
+      borderRadius: width * 0.02,
+      marginTop: height * 0.02,
+      elevation: 3,
+    },
+    buttonDisabled: {
+      backgroundColor: "#cccccc",
+    },
+    buttonText: {
+      color: "#fff",
+      fontSize: width * 0.045,
+      fontWeight: "bold",
+    },
+    backButtonText: {
+      color: "#000",
+      fontSize: width * 0.04,
+      fontWeight: "500",
+      marginTop: 20
+    },
+  });

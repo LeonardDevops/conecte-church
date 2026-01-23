@@ -1,4 +1,4 @@
-import { collection, getDocs } from "firebase/firestore";
+import { collection, getDocs, query, where } from "firebase/firestore";
 import { createContext, useEffect, useMemo, useState } from "react";
 import { db } from "./FirebaseConfig";
 
@@ -8,29 +8,38 @@ export const AppProvider = ({ children }) => {
   const [userContext, setUserContext] = useState({
     id: null,
     email: null,
-    churches: [],
+    name: null,
+    churches: [], // Vamos padronizar como 'churches'
     isLogged: false,
-    pixConfig:[]
+    pixConfig: null,
+    pr: null
   });
 
   async function carregarDados() {
     try {
-     
-      const querySnapshot = await getDocs(collection(db, "branches"));
+      // Buscamos apenas as igrejas ativas
+      const q = query(collection(db, "branches"), where("status", "==", "active"));
+      const querySnapshot = await getDocs(q);
 
       const branchesFormatted = querySnapshot.docs.map((doc) => {
         const data = doc.data();
         return {
           branchId: doc.id,
-          branchName: data.branchName,
-          churchId: data.churchId,
-          churchName: data.churchName,
-          churchPr: data.pastor?.name
+          branchName: data.name, // Verifique se no banco é 'name' ou 'branchName'
+          churchId: data.churchId || doc.id,
+          churchName: data.churchName || "Ministério Tálamo",
+          pastor: data.pastor || null, // Guardamos o objeto do pastor completo
+          pixConfig: data.pixConfig || null
         };
       });
 
-      setUserContext((prev) => ({ ...prev, branches: branchesFormatted , pixConfig:userContext.pixConfig }))
+      // Atualizamos o estado preservando o que já existe no usuário logado
+      setUserContext((prev) => ({ 
+        ...prev, 
+        churches: branchesFormatted 
+      }));
       
+      console.log("Igrejas carregadas no Contexto:", branchesFormatted.length);
     } catch (error) {
       console.error("Erro ao carregar dados das branches:", error);
     }
@@ -40,13 +49,14 @@ export const AppProvider = ({ children }) => {
     carregarDados();
   }, []);
 
+  // ✅ CORREÇÃO: O useMemo deve observar o userContext
   const contextValue = useMemo(
     () => ({
       userContext,
       setUserContext,
       carregarDados,
     }),
-    [userContext]
+    [userContext] // Se o userContext mudar, os componentes serão notificados
   );
 
   return (

@@ -1,4 +1,5 @@
 import * as Clipboard from 'expo-clipboard';
+import { getAuth, onAuthStateChanged } from "firebase/auth";
 import { addDoc, collection, serverTimestamp } from "firebase/firestore";
 import { useContext, useState } from "react";
 import {
@@ -17,7 +18,6 @@ import {
 import QRCode from "react-native-qrcode-svg";
 import { AppContext } from "../../src/Data/contextApi";
 import { db } from "../../src/Data/FirebaseConfig";
-
 const { width, height } = Dimensions.get("window");
 const scale = width / 375;
 const normalize = (size) => Math.round(PixelRatio.roundToNearestPixel(size * scale));
@@ -111,22 +111,32 @@ export default function Ofertas({ navigation }) {
       // Salvar histórico no Firestore mantendo sua lógica original
       const financeData = {
         type: tipo.toLowerCase(),
-        amount: parseFloat(valor.replace(',', '.')),
+        amount: parseFloat(valor),
         descripition: descricao || tipo,
         pixKey: userContext?.pixConfig?.pixKey,
         qrCodeUrl: "pix_generated",
+        churchId:userContext?.churchId,
         userName: userContext?.name || "Anônimo",
         branchName: userContext?.branchName || "Matriz",
-        date: new Date().toLocaleDateString('pt-BR'),
+        date: new Date().toISOString().split('T')[0],
         createdAt: serverTimestamp(),
         status: "pendente",
-        category: "geral",
-        paymentMethod: "Pix",
+        category: "Geral",
+        updateAt:serverTimestamp(),
+        paymentMethod: "pix",
         branchId: userContext?.branchId
       };
 
-      await addDoc(collection(db, "finances"), financeData);
-      Alert.alert("✅ Copiado!", "Código PIX copiado. Agora cole no app do seu banco para pagar.");
+      const  auth = getAuth();
+     await onAuthStateChanged(auth, (user)=> {
+
+      if (!user) {
+        return;
+      }
+        
+         addDoc(collection(db, "finances"), financeData);
+        Alert.alert("✅ Copiado!", "Código PIX copiado. Agora cole no app do seu banco para pagar.");
+      })
     } catch (error) {
       Alert.alert("Erro", "Não foi possível registrar a contribuição.");
     }
@@ -156,7 +166,7 @@ export default function Ofertas({ navigation }) {
           <View style={styles.tabContainer}>
             <TouchableOpacity 
               style={[styles.tab, tipo === "Dízimo" && styles.tabActive]} 
-              onPress={() => setTipo("Dízimo")}
+              onPress={() => setTipo("dizimo")}
             >
               <Text style={[styles.tabText, tipo === "Dízimo" && styles.tabTextActive]}>Dízimo</Text>
             </TouchableOpacity>
@@ -241,7 +251,8 @@ const styles = StyleSheet.create({
     paddingBottom: normalize(30), 
     alignItems: 'center',
     borderBottomLeftRadius: 30,
-    borderBottomRightRadius: 30
+    borderBottomRightRadius: 30,
+    marginTop:"0.5%"
   },
   title: { color: '#FFF', fontSize: normalize(22), fontWeight: 'bold' },
   subtitle: { color: '#AAA', fontSize: normalize(13), marginTop: 5 },

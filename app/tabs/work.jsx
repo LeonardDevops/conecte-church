@@ -1,5 +1,6 @@
 import Feather from '@expo/vector-icons/Feather';
 import { Picker } from "@react-native-picker/picker";
+import { getAuth, onAuthStateChanged } from "firebase/auth";
 import { addDoc, collection, getDocs } from "firebase/firestore";
 import { useContext, useEffect, useState } from "react";
 import {
@@ -81,11 +82,20 @@ export default function Work() {
   }
 
   useEffect(() => {
-    async function getGrupos() {
-      try {
-        const snapshot = await getDocs(collection(db, 'tasksOpitions'));
-        const data = [];
-        snapshot.forEach((doc) => {
+    const auth = getAuth();
+    onAuthStateChanged(auth, (user)=> {
+      if (user) {
+      async function getGrupos() {
+    
+          const uid = user.uid;
+          console.log(uid); 
+          
+          
+          
+          try {
+            const snapshot = await getDocs(collection(db, 'tasksOpitions'));
+            const data = [];
+            snapshot.forEach((doc) => {
           const options = doc.data().options || [];
           options.forEach((option) => {
             data.push({
@@ -98,8 +108,14 @@ export default function Work() {
       } catch (error) {
         console.error('Erro ao buscar grupos:', error);
       }
-    }
+    } 
     getGrupos();
+  } else {
+    alert("usuario nao tem permissao")
+  }
+
+ 
+})
   }, []);
 
   return (
@@ -134,13 +150,13 @@ export default function Work() {
               dropdownIconColor="#000"
               mode="dropdown"
             >
-              <Picker.Item label='Selecione uma opção...' value='' color="#ffffff" />
+              <Picker.Item label='Selecione uma opção...' value='' color="#4d4d4d" />
               {listaGrupos.map((item) => (
                 <Picker.Item
                   key={item.id}
                   label={item.taskOption}
                   value={item.id}
-                  color="#c9c9c9"
+                  color="#4d4d4d"
                 />
               ))}
             </Picker>

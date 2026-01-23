@@ -1,5 +1,6 @@
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
+import * as ImageManipulator from 'expo-image-manipulator'; // 1. Importar o manipulador
 import * as ImagePicker from 'expo-image-picker';
 import { useRouter } from "expo-router";
 import { doc, getDoc, updateDoc } from "firebase/firestore";
@@ -23,7 +24,6 @@ import { AppContext } from "../../src/Data/contextApi";
 
 const { width, height } = Dimensions.get("window");
 
-// Função auxiliar para escalar fontes e tamanhos proporcionalmente
 const scale = width / 375; 
 const normalize = (size) => {
   const newSize = size * scale;
@@ -40,98 +40,106 @@ export default function Config() {
   const [dataNascimento, setDataNascimento] = useState();
   const [celular, setCelular] = useState();
   const [atribuicao, setAtribuicao] = useState();
-  const [searchUser, setSearchUser] = useState('');
-
-  const [usuarios, setusuarios] = useState([]);
+  
   const [userId, setUserId] = useState(false);
   const [img, setImg] = useState(false);
-  const [imgID, setImgID] = useState(false);
-  const [cart, setCart] = useState(false);
-  const [loading, setLoading] = useState();
-
-  const { setUserContext, userContext } = useContext(AppContext);
+  const { userContext } = useContext(AppContext);
 
   useEffect(() => {
     const fetchData = async () => {
-      const querySnapshot = doc(db, 'users', userContext.id);
-      const dataSnapp = await getDoc(querySnapshot);
-      if (!dataSnapp.exists()) return;
+      try {
+        const querySnapshot = doc(db, 'users', userContext.id);
+        const dataSnapp = await getDoc(querySnapshot);
+        if (!dataSnapp.exists()) return;
 
-      const user = dataSnapp.data();
-      setUserId(dataSnapp.id);
-      setNome(user.name);
-      setDataNascimento(user.birthDate);
-      setCelular(user.phone);
-      setTsg(user.tsg);
-      setAtribuicao(user.atribuicao);
+        const user = dataSnapp.data();
+        setUserId(dataSnapp.id);
+        setNome(user.name);
+        setDataNascimento(user.birthDate);
+        setCelular(user.phone);
+        setTsg(user.tsg);
+        setAtribuicao(user.atribuicao);
+        
+        if (user.profileImage) {
+          setImage(user.profileImage);
+          setImg(true);
+        }
+      } catch (error) {
+        console.error("Erro ao buscar dados:", error);
+      }
     }
     fetchData();
   }, [userContext.id]);
 
+  // FUNÇÃO PICKIMAGE COM CONVERSÃO PARA WEBP
   const pickImage = async () => {
     if (!userId) return;
 
     let result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ['images'],
       allowsEditing: true,
-      aspect: [4, 4],
+      aspect: [1, 1], // Quadrado perfeito para perfil
       quality: 1,
     });
 
     if (result.canceled) return;
 
-    const response = await fetch(result.assets[0].uri);
-    const blob = await response.blob();
+    try {
+      // 2. CONVERSÃO PARA WEBP
+      // Redimensionamos para 500x500 (tamanho ótimo para avatar) e convertemos para WEBP
+      const manipResult = await ImageManipulator.manipulateAsync(
+        result.assets[0].uri,
+        [{ resize: { width: 500, height: 500 } }],
+        { compress: 0.8, format: ImageManipulator.SaveFormat.WEBP }
+      );
 
-    const storage = getStorage();
-    const storageRef = ref(storage, `perfilUsers/image:${userId}`);
+      const response = await fetch(manipResult.uri);
+      const blob = await response.blob();
 
-    await uploadBytes(storageRef, blob);
-    const url = await getDownloadURL(storageRef);
-    setImage(url);
-    setImg(true);
-  };
+      const storage = getStorage();
+      // Alterei a extensão para .webp no Storage
+      const storageRef = ref(storage, `perfilUsers/${userId}.webp`);
 
-  useEffect(() => {
-    async function fetchImage() {
-      try {
-        const storage = getStorage();
-        const storageRef = ref(storage, `perfilUsers/image:${userId}`);
-        const url = await getDownloadURL(storageRef);
-        setImage(url);
-        setImg(true);
-      } catch { }
+      await uploadBytes(storageRef, blob);
+      const url = await getDownloadURL(storageRef);
+      
+      setImage(url);
+      setImg(true);
+      
+      Alert.alert("Sucesso", "Foto convertida para WebP e carregada!");
+    } catch (error) {
+      console.error(error);
+      Alert.alert("Erro", "Falha ao processar imagem.");
     }
-    if (userId) fetchImage();
-  }, [userId]);
-
-  function goCard() {
-    router.push('/Card');
-  }
+  };
 
   async function editar() {
     if (!edit) {
       setEdit(true);
     } else {
-      await updateDoc(doc(db, 'users', userId), {
-        name: nome,
-        birthDate: dataNascimento,
-        phone: celular,
-        tsg: tsg,
-        atribuicao: atribuicao
-      });
-      Alert.alert('Sucesso', 'Dados atualizados!');
-      setEdit(false);
+      try {
+        await updateDoc(doc(db, 'users', userId), {
+          name: nome,
+          birthDate: dataNascimento,
+          phone: celular,
+          tsg: tsg,
+          atribuicao: atribuicao,
+          profileImage: image 
+        });
+        
+        Alert.alert('Sucesso', 'Perfil atualizado!');
+        setEdit(false);
+      } catch (error) {
+        Alert.alert('Erro', 'Não foi possível salvar.');
+      }
     }
   }
 
   return (
     <ScrollView style={{ flex: 1, backgroundColor: '#eee' }} contentContainerStyle={{ paddingBottom: 30 }}>
-
-      {/* HEADER */}
       <View style={styles.header}>
         <View style={styles.nameCard}>
-          <Text style={styles.nameText}>{nome}</Text>
+          <Text style={styles.nameText}>{nome || 'Usuário'}</Text>
         </View>
 
         <TouchableOpacity style={styles.avatarWrapper} onPress={pickImage}>
@@ -143,20 +151,18 @@ export default function Config() {
         </TouchableOpacity>
       </View>
 
-      {/* BOTÕES */}
       <View style={styles.buttonsRow}>
-        <TouchableOpacity style={styles.btnGray} onPress={goCard}>
+        <TouchableOpacity style={styles.btnGray} onPress={() => router.push('/Card')}>
           <FontAwesome name="id-card" size={normalize(18)} color="#fff" />
           <Text style={styles.btnText}>Meus Dados</Text>
         </TouchableOpacity>
 
         <TouchableOpacity style={styles.btnBlue} onPress={editar}>
-          <MaterialIcons name="edit" size={normalize(18)} color="#fff" />
+          <MaterialIcons name={edit ? "save" : "edit"} size={normalize(18)} color="#fff" />
           <Text style={styles.btnText}>{edit ? 'Salvar' : 'Editar'}</Text>
         </TouchableOpacity>
       </View>
 
-      {/* FORMULÁRIO */}
       <View style={styles.form}>
         <Label text="Nome" />
         <Input icon="person" value={nome} editable={edit} onChangeText={setNome} />
@@ -173,15 +179,11 @@ export default function Config() {
         <Label text="Atribuição" />
         <Input icon="label" value={atribuicao} editable={edit} onChangeText={setAtribuicao} />
       </View>
-
     </ScrollView>
   );
 }
 
-/* COMPONENTES AUXILIARES (VISUAL) */
-const Label = ({ text }) => (
-  <Text style={styles.label}>{text}</Text>
-);
+const Label = ({ text }) => <Text style={styles.label}>{text}</Text>;
 
 const Input = ({ icon, mask, ...props }) => (
   <View style={styles.inputCard}>
@@ -195,106 +197,24 @@ const Input = ({ icon, mask, ...props }) => (
 );
 
 const styles = StyleSheet.create({
-  header: {
-    backgroundColor: '#000',
-    alignItems: 'center',
-    paddingTop: height * 0.02,
-    paddingBottom: height * 0.08, 
-    width: '100%',
-    marginTop:height * 0.001
-    }
-    ,
-  nameCard: {
-    borderRadius: 10,
-    width: '98%',
-    justifyContent: "center",
-    alignItems: "center",
-    marginBottom: height * 0.01,
-    marginTop: height * 0.01,
-  },
-  nameText: {
-    color: '#fff',
-    fontSize: normalize(16),
-    fontWeight: '400'
-  },
+  header: { backgroundColor: '#000', alignItems: 'center', paddingTop: 20, paddingBottom: 60, width: '100%' },
+  nameCard: { width: '98%', alignItems: "center", marginBottom: 10 },
+  nameText: { color: '#fff', fontSize: normalize(16) },
   avatarWrapper: {
     position: 'absolute',
-    bottom: -normalize(45), // Metade da altura do avatar para ficar centralizado na linha do header
+    bottom: -45,
     backgroundColor: '#fff',
-    borderRadius: normalize(50),
+    borderRadius: 50,
     padding: 3,
     elevation: 5,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
   },
-  avatar: {
-    width: normalize(90),
-    height: normalize(90),
-    borderRadius: normalize(45)
-  },
-  buttonsRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginTop: normalize(50), // Compensa o avatar que está por cima
-    paddingHorizontal: width * 0.05,
-  },
-  btnGray: {
-    flexDirection: 'row',
-    gap: 8,
-    alignItems: 'center',
-    backgroundColor: '#444',
-    paddingVertical: normalize(12),
-    borderRadius: 10,
-    width: '47%',
-    justifyContent: 'center'
-  },
-  btnBlue: {
-    flexDirection: 'row',
-    gap: 8,
-    alignItems: 'center',
-    backgroundColor: '#3b6cb7',
-    paddingVertical: normalize(12),
-    borderRadius: 10,
-    width: '47%',
-    justifyContent: 'center'
-  },
-  btnText: {
-    color: '#fff',
-    fontWeight: 'bold',
-    fontSize: normalize(14)
-  },
-  form: {
-    paddingHorizontal: width * 0.05,
-  },
-  label: {
-    textAlign: 'left', // Alinhado à esquerda costuma ser melhor para mobile, mas mantive a estrutura
-    paddingLeft: 5,
-    marginTop: normalize(15),
-    marginBottom: 5,
-    color: '#444',
-    fontSize: normalize(14),
-    fontWeight: '600'
-  },
-  inputCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    paddingHorizontal: 15,
-    height: normalize(45), // Altura fixa normalizada para inputs
-    elevation: 2,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-  },
-  input: {
-    flex: 1,
-    marginLeft: 10,
-    fontSize: normalize(15),
-    color: '#333',
-    height: '100%'
-  }
+  avatar: { width: normalize(90), height: normalize(90), borderRadius: 45 },
+  buttonsRow: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 60, paddingHorizontal: 20 },
+  btnGray: { flexDirection: 'row', gap: 8, alignItems: 'center', backgroundColor: '#444', padding: 12, borderRadius: 10, width: '47%', justifyContent: 'center' },
+  btnBlue: { flexDirection: 'row', gap: 8, alignItems: 'center', backgroundColor: '#3b6cb7', padding: 12, borderRadius: 10, width: '47%', justifyContent: 'center' },
+  btnText: { color: '#fff', fontWeight: 'bold' },
+  form: { paddingHorizontal: 20 },
+  label: { marginTop: 15, marginBottom: 5, color: '#444', fontWeight: '600' },
+  inputCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff', borderRadius: 12, paddingHorizontal: 15, height: 45, elevation: 2 },
+  input: { flex: 1, marginLeft: 10, color: '#333' }
 });

@@ -1,25 +1,26 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useRouter } from "expo-router";
+
 import { useState } from 'react';
 import {
-    ActivityIndicator,
-    Alert,
-    Dimensions,
-    KeyboardAvoidingView,
-    PixelRatio,
-    Platform,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View
+  ActivityIndicator,
+  Alert,
+  Dimensions,
+  KeyboardAvoidingView,
+  PixelRatio,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View
 } from 'react-native';
 
 // Importações do Firebase - Verifique se seu caminho src/Data/firebaseConfig está correto
+import { getAuth, onAuthStateChanged } from "firebase/auth";
 import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
 import { db } from '../src/Data/FirebaseConfig';
-
 const { width } = Dimensions.get('window');
 
 // Mantendo seu padrão de normalização para ser responsivo em qualquer aparelho
@@ -62,18 +63,32 @@ export default function Forms() {
     emergencia: ''
   });
 
+
+  
   const handleSave = async () => {
+    
+    
     // Validação básica
     if (!form.nome || !form.telefone || !form.evento) {
       Alert.alert("Campos Obrigatórios", "Por favor, preencha pelo menos Nome, Telefone e Evento.");
       return;
     }
-
+    
     setLoading(true);
+    const auth = getAuth();
+     await onAuthStateChanged(auth, (user)=> {
 
-    try {
+      const uid = user.uid
+      console.log(uid);
+    
+      if (!user) {
+        return;
+
+      } 
+        
+        try {
       // Gravação na coleção 'forms' do Firestore
-      await addDoc(collection(db, "forms"), {
+        addDoc (collection(db, "forms"), {
         nome_completo: form.nome,
         igreja: form.igreja,
         telefone: form.telefone,
@@ -84,18 +99,20 @@ export default function Forms() {
         contato_emergencia: form.emergencia,
         data_inscricao: serverTimestamp(),
       });
-
+      
       Alert.alert("Sucesso", "Sua inscrição foi enviada com sucesso!", [
         { text: "OK", onPress: () => router.back() }
       ]);
       
-    } catch (error) {
+    }  catch (error) {
       console.error("Erro Firebase:", error);
       Alert.alert("Erro", "Não foi possível salvar os dados. Verifique sua conexão.");
     } finally {
       setLoading(false);
     }
-  };
+  })
+  
+};
 
   return (
     <KeyboardAvoidingView 
