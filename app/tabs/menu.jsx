@@ -57,6 +57,10 @@ export default function Menu() {
     router.push('/Forms');
   }
   
+  function goPresence(params) {
+    router.push('/Presence');
+  }
+  
 
 
   return (
@@ -79,7 +83,8 @@ export default function Menu() {
         </TouchableOpacity>
 
         {/* PlayList */}
-        <TouchableOpacity style={styles.button}>
+        <TouchableOpacity onPress={goPresence} style={styles.button}>
+          
           <Entypo name="google-play" size={normalize(28)} color="#ca0b0b" />
           <Text style={styles.text}>PlayList</Text>
         </TouchableOpacity>

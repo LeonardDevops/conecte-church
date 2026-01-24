@@ -1,17 +1,22 @@
+import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { Picker } from "@react-native-picker/picker";
 import { useRouter } from "expo-router";
 import { useContext, useEffect, useState } from "react";
 import {
   ActivityIndicator,
-  Alert,
   Dimensions,
+  KeyboardAvoidingView,
+  PixelRatio,
+  Platform,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
-  View,
+  View
 } from "react-native";
 import { MaskedTextInput } from "react-native-mask-text";
+import Toast, { BaseToast, ErrorToast } from 'react-native-toast-message';
 import { AppContext } from "../src/Data/contextApi";
 
 import { createUserWithEmailAndPassword } from "firebase/auth";
@@ -19,6 +24,8 @@ import { collection, doc, getDocs, query, serverTimestamp, setDoc, where } from 
 import { auth, db } from "../src/Data/FirebaseConfig";
 
 const { width, height } = Dimensions.get("window");
+const scale = width / 375;
+const normalize = (size) => Math.round(PixelRatio.roundToNearestPixel(size * scale));
 
 export default function Cadastro() {
   const { userContext } = useContext(AppContext);
@@ -30,13 +37,40 @@ export default function Cadastro() {
   const [nome, setNome] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [secureText, setSecureText] = useState(true);
   const [nascimento, setNascimento] = useState("");
   const [selectedBranchId, setSelectedBranchId] = useState("");
 
-  // ✅ BUSCA AS FILIAIS DIRETAMENTE CASO NÃO ESTEJAM NO CONTEXTO
+  // Configuração do Toast para fontes grandes
+  const toastConfig = {
+    success: (props) => (
+      <BaseToast
+        {...props}
+        style={{ borderLeftColor: '#4CAF50', height: normalize(70), width: '90%', marginTop: 10 }}
+        text1Style={{ fontSize: normalize(16), fontWeight: 'bold' }}
+        text2Style={{ fontSize: normalize(14), color: '#555' }}
+      />
+    ),
+    error: (props) => (
+      <ErrorToast
+        {...props}
+        style={{ borderLeftColor: '#F44336', height: normalize(70), width: '90%', marginTop: 10 }}
+        text1Style={{ fontSize: normalize(16), fontWeight: 'bold' }}
+        text2Style={{ fontSize: normalize(14), color: '#555' }}
+      />
+    ),
+    info: (props) => (
+      <BaseToast
+        {...props}
+        style={{ borderLeftColor: '#2196F3', height: normalize(70), width: '90%', marginTop: 10 }}
+        text1Style={{ fontSize: normalize(16), fontWeight: 'bold' }}
+        text2Style={{ fontSize: normalize(14), color: '#555' }}
+      />
+    ),
+  };
+
   useEffect(() => {
     const fetchBranches = async () => {
-      // Se o contexto já tiver as igrejas, usamos ele, senão buscamos no banco
       if (userContext?.churches && userContext.churches.length > 0) {
         setChurches(userContext.churches);
       } else {
@@ -48,8 +82,8 @@ export default function Cadastro() {
             branchesData.push({
               branchId: doc.id,
               branchName: doc.data().name,
-              churchId: doc.data().churchId || "default", // ajuste conforme seu banco
-              churchName: "Ministério Evangelistico Tálamo", // fixo ou do banco
+              churchId: doc.data().churchId || "default",
+              churchName: "Ministério Evangelistico Tálamo",
             });
           });
           setChurches(branchesData);
@@ -58,7 +92,6 @@ export default function Cadastro() {
         }
       }
     };
-
     fetchBranches();
   }, [userContext]);
 
@@ -67,48 +100,30 @@ export default function Cadastro() {
     return re.test(email);
   };
 
-  const validateDate = (date) => {
-    const regex = /^(\d{2})\/(\d{2})\/(\d{4})$/;
-    if (!regex.test(date)) return false;
-    const [, day, month, year] = date.match(regex);
-    const d = parseInt(day, 10);
-    const m = parseInt(month, 10);
-    const y = parseInt(year, 10);
-    if (y < 1900 || y > new Date().getFullYear()) return false;
-    if (m < 1 || m > 12) return false;
-    const lastDayOfMonth = new Date(y, m, 0).getDate();
-    return d >= 1 && d <= lastDayOfMonth;
-  };
-
   async function handleRegister() {
     const branchCompleted = churches.find((b) => b.branchId === selectedBranchId);
 
     if (!nome.trim() || !email.trim() || !password.trim() || !selectedBranchId) {
-      Alert.alert("Erro", "Preencha todos os campos e selecione uma filial!");
-      return;
+      return Toast.show({ type: 'error', text1: 'Erro', text2: 'Preencha todos os campos!' });
     }
 
     if (!validateEmail(email)) {
-      Alert.alert("Erro", "E-mail inválido.");
-      return;
+      return Toast.show({ type: 'error', text1: 'Erro', text2: 'E-mail inválido.' });
     }
 
     if (password.length < 6) {
-      Alert.alert("Erro", "A senha deve ter pelo menos 6 caracteres.");
-      return;
+      return Toast.show({ type: 'error', text1: 'Erro', text2: 'A senha deve ter pelo menos 6 dígitos.' });
     }
 
     setLoading(true);
 
     try {
-      // 1. Criar usuário no Firebase Auth
       const userCredential = await createUserWithEmailAndPassword(
         auth,
         email.trim().toLowerCase(),
         password
       );
 
-      // 2. Salvar dados adicionais no Firestore
       await setDoc(doc(db, "users", userCredential.user.uid), {
         branchId: branchCompleted?.branchId || null,
         branchName: branchCompleted?.branchName || null,
@@ -120,18 +135,22 @@ export default function Cadastro() {
         status: "pending",
         createdAt: serverTimestamp(),
         uid: userCredential.user.uid,
-        atribuicao: "Membro", // Valor padrão
-        role:"user"
+        atribuicao: "Membro",
+        role: "user"
       });
 
-      Alert.alert("Sucesso", "Seu cadastro foi enviado para aprovação do pastor!", [
-        { text: "OK", onPress: () => route.push("/") },
-      ]);
+      Toast.show({
+        type: 'success',
+        text1: 'Sucesso!',
+        text2: 'Cadastro enviado para aprovação do pastor.',
+        onHide: () => route.push("/")
+      });
+
     } catch (error) {
       console.error("Erro no cadastro:", error);
       let mensagem = "Não foi possível realizar o cadastro.";
       if (error.code === "auth/email-already-in-use") mensagem = "Este e-mail já está em uso.";
-      Alert.alert("Erro", mensagem);
+      Toast.show({ type: 'error', text1: 'Erro no Cadastro', text2: mensagem });
     } finally {
       setLoading(false);
     }
@@ -139,160 +158,246 @@ export default function Cadastro() {
 
   return (
     <View style={styles.containerBody}>
-      <Text style={styles.title}>Cadastro de Usuário</Text>
-
-      <Text style={styles.text}>Nome Completo</Text>
-      <TextInput
-        value={nome}
-        onChangeText={setNome}
-        placeholder="Ex: João Silva"
-        style={styles.textInput}
-        editable={!loading}
-      />
-
-      <Text style={styles.text}>Email</Text>
-      <TextInput
-        value={email}
-        onChangeText={setEmail}
-        keyboardType="email-address"
-        autoCapitalize="none"
-        placeholder="email@exemplo.com"
-        style={styles.textInput}
-        editable={!loading}
-      />
-
-      <Text style={styles.text}>Senha</Text>
-      <TextInput
-        value={password}
-        onChangeText={setPassword}
-        secureTextEntry
-        placeholder="Mínimo 6 caracteres"
-        style={styles.textInput}
-        editable={!loading}
-      />
-
-      <Text style={styles.text}>Data de Nascimento</Text>
-      <MaskedTextInput
-        value={nascimento}
-        onChangeText={setNascimento}
-        mask="99/99/9999"
-        keyboardType="numeric"
-        placeholder="DD/MM/AAAA"
-        style={styles.textInput}
-        editable={!loading}
-      />
-
-      <Text style={styles.text}>Filial</Text>
-      <View style={styles.pickerContainer}>
-        <Picker
-          selectedValue={selectedBranchId}
-          onValueChange={(itemValue) => setSelectedBranchId(itemValue)}
-          enabled={!loading}
-          style={styles.picker}
-        >
-          <Picker.Item label="Selecione sua igreja" value="" color="#999" />
-          {churches.map((item) => (
-            <Picker.Item
-              key={item.branchId}
-              label={item.branchName}
-              value={item.branchId}
-            />
-          ))}
-        </Picker>
-      </View>
-
-      <TouchableOpacity
-        onPress={handleRegister}
-        style={[styles.button, loading && styles.buttonDisabled]}
-        disabled={loading}
+      <KeyboardAvoidingView 
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        style={{ flex: 1 }}
       >
-        {loading ? (
-          <ActivityIndicator color="#fff" />
-        ) : (
-          <Text style={styles.buttonText}>Enviar Cadastro</Text>
-        )}
-      </TouchableOpacity>
+        <ScrollView 
+          contentContainerStyle={styles.scrollContainer} 
+          showsVerticalScrollIndicator={false}
+          bounces={false}
+        >
+          <Text style={styles.title}>Criar nova conta</Text>
+          <Text style={styles.subtitle}>Preencha seus dados para solicitar o acesso</Text>
 
-      <TouchableOpacity onPress={() => route.push("/")} disabled={loading}>
-        <Text style={styles.backButtonText}>Voltar para Login</Text>
-      </TouchableOpacity>
+          <View style={styles.form}>
+            <Text style={styles.label}>Nome Completo</Text>
+            <TextInput
+              value={nome}
+              onChangeText={setNome}
+              placeholder="Seu nome"
+              placeholderTextColor="#bbb"
+              style={styles.textInput}
+              editable={!loading}
+            />
+
+            <Text style={styles.label}>E-mail</Text>
+            <TextInput
+              value={email}
+              onChangeText={setEmail}
+              keyboardType="email-address"
+              autoCapitalize="none"
+              placeholder="email@exemplo.com"
+              placeholderTextColor="#bbb"
+              style={styles.textInput}
+              editable={!loading}
+            />
+
+            <View style={styles.row}>
+              <View style={{ flex: 1, marginRight: 10 }}>
+                <Text style={styles.label}>Nascimento</Text>
+                <MaskedTextInput
+                  value={nascimento}
+                  onChangeText={setNascimento}
+                  mask="99/99/9999"
+                  keyboardType="numeric"
+                  placeholder="00/00/0000"
+                  placeholderTextColor="#bbb"
+                  style={styles.textInput}
+                  editable={!loading}
+                />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.label}>Senha</Text>
+                <View style={styles.passwordWrapper}>
+                  <TextInput
+                    value={password}
+                    onChangeText={setPassword}
+                    secureTextEntry={secureText}
+                    placeholder="******"
+                    placeholderTextColor="#bbb"
+                    style={styles.inputPass}
+                    editable={!loading}
+                  />
+                  <TouchableOpacity 
+                    onPress={() => setSecureText(!secureText)}
+                    style={styles.eyeIcon}
+                  >
+                    <MaterialIcons 
+                      name={secureText ? "visibility-off" : "visibility"} 
+                      size={normalize(20)} 
+                      color="#999" 
+                    />
+                  </TouchableOpacity>
+                </View>
+              </View>
+            </View>
+
+            <Text style={styles.label}>Selecione sua Igreja (Filial)</Text>
+            <View style={styles.pickerWrapper}>
+              <Picker
+                selectedValue={selectedBranchId}
+                onValueChange={(itemValue) => setSelectedBranchId(itemValue)}
+                enabled={!loading}
+                style={styles.picker}
+                dropdownIconColor="#000"
+              >
+                <Picker.Item label="Toque para selecionar..." value="" color="#999" />
+                {churches.map((item) => (
+                  <Picker.Item
+                    key={item.branchId}
+                    label={item.branchName}
+                    value={item.branchId}
+                    style={{fontSize: normalize(15)}}
+                  />
+                ))}
+              </Picker>
+            </View>
+
+            <TouchableOpacity
+              onPress={handleRegister}
+              style={[styles.button, loading && styles.buttonDisabled]}
+              disabled={loading}
+              activeOpacity={0.8}
+            >
+              {loading ? (
+                <ActivityIndicator color="#fff" />
+              ) : (
+                <Text style={styles.buttonText}>Finalizar Cadastro</Text>
+              )}
+            </TouchableOpacity>
+
+            <TouchableOpacity 
+              onPress={() => route.push("/")} 
+              disabled={loading}
+              style={styles.backButton}
+            >
+              <Text style={styles.backButtonText}>Já tenho uma conta. <Text style={{fontWeight: '700'}}>Entrar</Text></Text>
+            </TouchableOpacity>
+          </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
+
+      <Toast config={toastConfig} />
     </View>
   );
 }
 
-// ... Seus estilos permanecem os mesmos ...
 const styles = StyleSheet.create({
-    containerBody: {
-      flex: 1,
-      justifyContent: "center",
-      alignItems: "center",
-      paddingHorizontal: width * 0.05,
-      backgroundColor: "#f5f5f5",
-    },
-    title: {
-      fontSize: width * 0.06,
-      fontWeight: "bold",
-      color: "#000000",
-      marginBottom: height * 0.04,
-      alignSelf: "center",
-    },
-    textInput: {
-      height: height * 0.06,
-      borderColor: "#ddd",
-      borderWidth: 1,
-      marginBottom: height * 0.02,
-      fontSize: width * 0.04,
-      width: "100%",
-      color: "#000",
-      backgroundColor: "#fff",
-      borderRadius: width * 0.02,
-      paddingHorizontal: width * 0.04,
-      marginTop: height * 0.01,
-    },
-    text: {
-      fontSize: width * 0.04,
-      fontWeight: "600",
-      color: "#333333",
-      marginBottom: height * 0.005,
-      alignSelf: "flex-start",
-    },
-    pickerContainer: {
-      width: "100%",
-      borderColor: "#ddd",
-      borderWidth: 1,
-      borderRadius: width * 0.02,
-      marginTop: height * 0.01,
-      marginBottom: height * 0.02,
-      backgroundColor: "#fff",
-      overflow: "hidden",
-    },
-    picker: {
-      height: height * 0.07,
-      width: "100%",
-      color: "#000",
-    },
-    button: {
-      height: height * 0.06,
-      width: "100%",
-      backgroundColor: "#000",
-      justifyContent: "center",
-      alignItems: "center",
-      borderRadius: width * 0.02,
-      marginTop: height * 0.02,
-      elevation: 3,
-    },
-    buttonDisabled: {
-      backgroundColor: "#cccccc",
-    },
-    buttonText: {
-      color: "#fff",
-      fontSize: width * 0.045,
-      fontWeight: "bold",
-    },
-    backButtonText: {
-      color: "#000",
-      fontSize: width * 0.04,
-      fontWeight: "500",
-      marginTop: 20
-    },
-  });
+  containerBody: {
+    flex: 1,
+    backgroundColor: "#fff",
+  },
+  scrollContainer: {
+    flexGrow: 1,
+    paddingHorizontal: width * 0.07,
+    paddingTop: height * 0.08,
+    paddingBottom: 40,
+  },
+  title: {
+    fontSize: normalize(26),
+    fontWeight: "800",
+    color: "#000",
+    letterSpacing: -0.5,
+  },
+  subtitle: {
+    fontSize: normalize(14),
+    color: "#777",
+    marginTop: 5,
+    marginBottom: height * 0.04,
+  },
+  form: {
+    width: "100%",
+  },
+  row: {
+    flexDirection: 'row',
+    justifyContent: 'space-between'
+  },
+  label: {
+    fontSize: normalize(13),
+    fontWeight: "700",
+    color: "#444",
+    marginBottom: 8,
+    marginLeft: 2,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5
+  },
+  textInput: {
+    height: normalize(55),
+    backgroundColor: "#f9f9f9",
+    borderWidth: 1,
+    borderColor: "#efefef",
+    borderRadius: 14,
+    paddingHorizontal: 16,
+    fontSize: normalize(15),
+    color: "#000",
+    marginBottom: height * 0.02,
+  },
+  passwordWrapper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    height: normalize(55),
+    backgroundColor: "#f9f9f9",
+    borderWidth: 1,
+    borderColor: "#efefef",
+    borderRadius: 14,
+    marginBottom: height * 0.02,
+  },
+  inputPass: {
+    flex: 1,
+    height: '100%',
+    paddingHorizontal: 16,
+    fontSize: normalize(15),
+    color: "#000",
+  },
+  eyeIcon: {
+    paddingHorizontal: 12,
+    height: '100%',
+    justifyContent: 'center',
+  },
+  pickerWrapper: {
+    backgroundColor: "#f9f9f9",
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: "#efefef",
+    marginBottom: height * 0.03,
+    height: normalize(55),
+    justifyContent: "center",
+    overflow: "hidden",
+  },
+  picker: {
+    width: "100%",
+    color: "#000",
+  },
+  button: {
+    height: normalize(58),
+    backgroundColor: "#000",
+    justifyContent: "center",
+    alignItems: "center",
+    borderRadius: 16,
+    marginTop: 10,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 5,
+  },
+  buttonDisabled: {
+    backgroundColor: "#444",
+    opacity: 0.6
+  },
+  buttonText: {
+    color: "#fff",
+    fontSize: normalize(16),
+    fontWeight: "700",
+  },
+  backButton: {
+    marginTop: 25,
+    alignSelf: "center",
+    padding: 10
+  },
+  backButtonText: {
+    color: "#666",
+    fontSize: normalize(14),
+  },
+});

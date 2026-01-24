@@ -107,6 +107,31 @@ export default function RootLayout() {
           }}
           />
       
+        <Stack.Screen
+          name="Presence"
+          options={{
+            headerTitle: "Check-in",
+            headerShown: true,
+            statusBarStyle: "light",
+            headerStyle: { backgroundColor: "#000000ff" },
+            headerTintColor: "#fff",
+            headerTitleStyle: { fontWeight: "bold" },
+            title: "",
+          }}
+          />
+        <Stack.Screen
+          name="Boarding"
+          options={{
+            headerTitle: "Identificação Digital",
+            headerShown: true,
+            statusBarStyle: "light",
+            headerStyle: { backgroundColor: "#000000ff" },
+            headerTintColor: "#fff",
+            headerTitleStyle: { fontWeight: "bold" },
+            title: "",
+          }}
+          />
+      
 
         <Stack.Screen
           name="tabs"

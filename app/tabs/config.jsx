@@ -1,12 +1,15 @@
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
-import * as ImageManipulator from 'expo-image-manipulator'; // 1. Importar o manipulador
+import * as ImageManipulator from 'expo-image-manipulator';
 import * as ImagePicker from 'expo-image-picker';
 import { useRouter } from "expo-router";
 import { doc, getDoc, updateDoc } from "firebase/firestore";
 import { getDownloadURL, getStorage, ref, uploadBytes } from "firebase/storage";
 import { useContext, useEffect, useState } from "react";
 import {
+  ActivityIndicator // Adicionado para feedback visual
+  ,
+
   Alert,
   Dimensions,
   Image,
@@ -41,28 +44,32 @@ export default function Config() {
   const [celular, setCelular] = useState();
   const [atribuicao, setAtribuicao] = useState();
   
-  const [userId, setUserId] = useState(false);
+  const [userId, setUserId] = useState(null);
   const [img, setImg] = useState(false);
+  const [loadingImg, setLoadingImg] = useState(false); // Novo estado para loading
   const { userContext } = useContext(AppContext);
 
   useEffect(() => {
     const fetchData = async () => {
       try {
+        if (!userContext?.id) return;
+
         const querySnapshot = doc(db, 'users', userContext.id);
         const dataSnapp = await getDoc(querySnapshot);
-        if (!dataSnapp.exists()) return;
-
-        const user = dataSnapp.data();
-        setUserId(dataSnapp.id);
-        setNome(user.name);
-        setDataNascimento(user.birthDate);
-        setCelular(user.phone);
-        setTsg(user.tsg);
-        setAtribuicao(user.atribuicao);
         
-        if (user.profileImage) {
-          setImage(user.profileImage);
-          setImg(true);
+        if (dataSnapp.exists()) {
+          const user = dataSnapp.data();
+          setUserId(dataSnapp.id);
+          setNome(user.name);
+          setDataNascimento(user.birthDate);
+          setCelular(user.phone);
+          setTsg(user.tsg);
+          setAtribuicao(user.atribuicao);
+          
+          if (user.profileImage) {
+            setImage(user.profileImage);
+            setImg(true);
+          }
         }
       } catch (error) {
         console.error("Erro ao buscar dados:", error);
@@ -71,22 +78,21 @@ export default function Config() {
     fetchData();
   }, [userContext.id]);
 
-  // FUNÇÃO PICKIMAGE COM CONVERSÃO PARA WEBP
   const pickImage = async () => {
     if (!userId) return;
 
     let result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ['images'],
       allowsEditing: true,
-      aspect: [1, 1], // Quadrado perfeito para perfil
+      aspect: [1, 1],
       quality: 1,
     });
 
     if (result.canceled) return;
 
     try {
-      // 2. CONVERSÃO PARA WEBP
-      // Redimensionamos para 500x500 (tamanho ótimo para avatar) e convertemos para WEBP
+      setLoadingImg(true); // Inicia o carregamento visual
+
       const manipResult = await ImageManipulator.manipulateAsync(
         result.assets[0].uri,
         [{ resize: { width: 500, height: 500 } }],
@@ -97,19 +103,25 @@ export default function Config() {
       const blob = await response.blob();
 
       const storage = getStorage();
-      // Alterei a extensão para .webp no Storage
       const storageRef = ref(storage, `perfilUsers/${userId}.webp`);
 
       await uploadBytes(storageRef, blob);
       const url = await getDownloadURL(storageRef);
       
+      // PERSISTÊNCIA: Atualiza o Firestore imediatamente com a nova URL
+      await updateDoc(doc(db, 'users', userId), {
+        profileImage: url
+      });
+
       setImage(url);
       setImg(true);
       
-      Alert.alert("Sucesso", "Foto convertida para WebP e carregada!");
+      Alert.alert("Sucesso", "Foto de perfil atualizada!");
     } catch (error) {
       console.error(error);
       Alert.alert("Erro", "Falha ao processar imagem.");
+    } finally {
+      setLoadingImg(false); // Para o carregamento
     }
   };
 
@@ -142,11 +154,21 @@ export default function Config() {
           <Text style={styles.nameText}>{nome || 'Usuário'}</Text>
         </View>
 
-        <TouchableOpacity style={styles.avatarWrapper} onPress={pickImage}>
-          {img ? (
+        <TouchableOpacity 
+          style={styles.avatarWrapper} 
+          onPress={pickImage} 
+          disabled={loadingImg}
+        >
+          {loadingImg ? (
+            <View style={[styles.avatar, { justifyContent: 'center', alignItems: 'center' }]}>
+               <ActivityIndicator size="small" color="#000" />
+            </View>
+          ) : img ? (
             <Image source={{ uri: image }} style={styles.avatar} />
           ) : (
-            <MaterialIcons name="add-a-photo" size={normalize(30)} color="#000" />
+            <View style={[styles.avatar, { justifyContent: 'center', alignItems: 'center' }]}>
+               <MaterialIcons name="add-a-photo" size={normalize(30)} color="#000" />
+            </View>
           )}
         </TouchableOpacity>
       </View>
