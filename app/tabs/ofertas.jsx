@@ -18,12 +18,13 @@ import {
 import QRCode from "react-native-qrcode-svg";
 import { AppContext } from "../../src/Data/contextApi";
 import { db } from "../../src/Data/FirebaseConfig";
+
 const { width, height } = Dimensions.get("window");
 const scale = width / 375;
 const normalize = (size) => Math.round(PixelRatio.roundToNearestPixel(size * scale));
 
 export default function Ofertas({ navigation }) {
-  const [tipo, setTipo] = useState("Dízimo");
+  const [tipo, setTipo] = useState("Dízimo"); // Estado padronizado
   const [valor, setValor] = useState("");
   const [descricao, setDescricao] = useState("");
   const [qrCodeUrl, setQrCodeUrl] = useState("");
@@ -33,7 +34,6 @@ export default function Ofertas({ navigation }) {
 
   const { userContext } = useContext(AppContext);
 
-  // Função para gerar payload PIX Estático (Padrão Banco Central)
   const generatePixPayload = (chavePix, valor, descricao) => {
     if (!chavePix || !valor) return "";
     
@@ -41,25 +41,20 @@ export default function Ofertas({ navigation }) {
     const nomeRecebedor = (userContext?.pixConfig?.nome || "IGREJA").substring(0, 25).toUpperCase();
     const cidade = (userContext?.pixConfig?.cidade || "BRASIL").substring(0, 15).toUpperCase();
     
-    // Auxiliar para montar blocos (Padrão EMV Co)
     const mountBlock = (id, value) => id + value.length.toString().padStart(2, '0') + value;
 
-    let payload = "000201010212"; // Cabeçalho padrão
-    
-    // Dados da conta (Chave Pix)
+    let payload = "000201010212"; 
     const merchantAccount = "0014BR.GOV.BCB.PIX" + mountBlock("01", chavePix);
     payload += mountBlock("26", merchantAccount);
-    
-    payload += "52040000"; // Categoria
-    payload += "5303986";  // Moeda (Real)
-    payload += mountBlock("54", valorFormatado); // Valor
-    payload += "5802BR";   // País
+    payload += "52040000"; 
+    payload += "5303986";  
+    payload += mountBlock("54", valorFormatado); 
+    payload += "5802BR";   
     payload += mountBlock("59", nomeRecebedor);
     payload += mountBlock("60", cidade);
-    payload += "62070503***"; // Campo adicional padrão
-    payload += "6304"; // Indicador de CRC16
+    payload += "62070503***"; 
+    payload += "6304"; 
 
-    // Cálculo real de CRC16 CCITT
     const calculateCRC16 = (str) => {
       let crc = 0xFFFF;
       for (let i = 0; i < str.length; i++) {
@@ -93,7 +88,7 @@ export default function Ofertas({ navigation }) {
       const payload = generatePixPayload(chavePix, valorNumerico, descricao);
       
       setPixPayload(payload);
-      setQrCodeUrl(payload); // O QR Code agora renderiza o próprio payload Copia e Cola
+      setQrCodeUrl(payload); 
       setQrGenerated(true);
     } catch (error) {
       Alert.alert("Erro", "Falha ao gerar QR Code.");
@@ -108,35 +103,30 @@ export default function Ofertas({ navigation }) {
     try {
       await Clipboard.setStringAsync(pixPayload);
 
-      // Salvar histórico no Firestore mantendo sua lógica original
       const financeData = {
         type: tipo.toLowerCase(),
-        amount: parseFloat(valor),
+        amount: parseFloat(valor.replace(',', '.')),
         descripition: descricao || tipo,
         pixKey: userContext?.pixConfig?.pixKey,
         qrCodeUrl: "pix_generated",
-        churchId:userContext?.churchId,
+        churchId: userContext?.churchId,
         userName: userContext?.name || "Anônimo",
         branchName: userContext?.branchName || "Matriz",
         date: new Date().toISOString().split('T')[0],
         createdAt: serverTimestamp(),
         status: "pendente",
         category: "Geral",
-        updateAt:serverTimestamp(),
+        updateAt: serverTimestamp(),
         paymentMethod: "pix",
         branchId: userContext?.branchId
       };
 
-      const  auth = getAuth();
-     await onAuthStateChanged(auth, (user)=> {
-
-      if (!user) {
-        return;
-      }
-        
-         addDoc(collection(db, "finances"), financeData);
+      const auth = getAuth();
+      await onAuthStateChanged(auth, (user) => {
+        if (!user) return;
+        addDoc(collection(db, "finances"), financeData);
         Alert.alert("✅ Copiado!", "Código PIX copiado. Agora cole no app do seu banco para pagar.");
-      })
+      });
     } catch (error) {
       Alert.alert("Erro", "Não foi possível registrar a contribuição.");
     }
@@ -162,11 +152,10 @@ export default function Ofertas({ navigation }) {
         </View>
 
         <View style={styles.card}>
-          {/* Seletor de Tipo Profissional */}
           <View style={styles.tabContainer}>
             <TouchableOpacity 
               style={[styles.tab, tipo === "Dízimo" && styles.tabActive]} 
-              onPress={() => setTipo("dizimo")}
+              onPress={() => setTipo("Dízimo")} // Corrigido para "Dízimo"
             >
               <Text style={[styles.tabText, tipo === "Dízimo" && styles.tabTextActive]}>Dízimo</Text>
             </TouchableOpacity>
@@ -216,7 +205,7 @@ export default function Ofertas({ navigation }) {
                 <QRCode
                   value={pixPayload}
                   size={normalize(180)}
-                  logo={require('../img/meta.webp')}
+                  logo={require('../img/logo.empresa.jpeg')} // Atualizado para sua logo
                   logoSize={normalize(40)}
                 />
               </View>
@@ -246,16 +235,15 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#F5F7FA' },
   scrollContent: { paddingBottom: 40 },
   header: { 
-    backgroundColor: '#000', 
+    backgroundColor: '#0072B1', // Azul Conecte
     paddingTop: normalize(50), 
     paddingBottom: normalize(30), 
     alignItems: 'center',
     borderBottomLeftRadius: 30,
     borderBottomRightRadius: 30,
-    marginTop:"0.5%"
   },
   title: { color: '#FFF', fontSize: normalize(22), fontWeight: 'bold' },
-  subtitle: { color: '#AAA', fontSize: normalize(13), marginTop: 5 },
+  subtitle: { color: '#b0d4e8', fontSize: normalize(13), marginTop: 5 },
   card: {
     backgroundColor: '#FFF',
     marginHorizontal: normalize(20),
@@ -276,7 +264,7 @@ const styles = StyleSheet.create({
     marginBottom: 20 
   },
   tab: { flex: 1, paddingVertical: 10, alignItems: 'center', borderRadius: 10 },
-  tabActive: { backgroundColor: '#000' },
+  tabActive: { backgroundColor: '#0072B1' }, // Azul Conecte
   tabText: { color: '#666', fontWeight: 'bold' },
   tabTextActive: { color: '#FFF' },
   label: { fontSize: normalize(12), color: '#888', fontWeight: '700', marginBottom: 8, textTransform: 'uppercase' },
@@ -290,7 +278,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 15,
     marginBottom: 20
   },
-  currencyPrefix: { fontSize: normalize(18), fontWeight: 'bold', color: '#000', marginRight: 10 },
+  currencyPrefix: { fontSize: normalize(18), fontWeight: 'bold', color: '#0072B1', marginRight: 10 },
   valorInput: { flex: 1, height: 55, fontSize: normalize(18), fontWeight: 'bold', color: '#000' },
   descricaoInput: { 
     backgroundColor: '#F8F9FA', 
@@ -302,14 +290,14 @@ const styles = StyleSheet.create({
     marginBottom: 25,
     color: '#000'
   },
-  btnGerar: { backgroundColor: '#000', height: 60, borderRadius: 12, justifyContent: 'center', alignItems: 'center' },
+  btnGerar: { backgroundColor: '#0072B1', height: 60, borderRadius: 12, justifyContent: 'center', alignItems: 'center' },
   btnText: { color: '#FFF', fontWeight: 'bold', fontSize: normalize(14) },
   qrArea: { alignItems: 'center', marginTop: 10 },
   qrBox: { padding: 15, backgroundColor: '#FFF', borderRadius: 15, borderWidth: 1, borderColor: '#EEE', marginBottom: 20 },
-  btnCopiar: { backgroundColor: '#10B981', height: 60, width: '100%', borderRadius: 12, justifyContent: 'center', alignItems: 'center' },
+  btnCopiar: { backgroundColor: '#67B946', height: 60, width: '100%', borderRadius: 12, justifyContent: 'center', alignItems: 'center' }, // Verde Conecte
   btnLimpar: { marginTop: 15 },
   btnLimparText: { color: '#666', fontWeight: '600', textDecorationLine: 'underline' },
   footerVerse: { marginTop: 30, alignItems: 'center', paddingHorizontal: 40 },
   verseText: { fontStyle: 'italic', textAlign: 'center', color: '#888', fontSize: normalize(14) },
-  verseRef: { fontWeight: 'bold', color: '#555', marginTop: 5 }
+  verseRef: { fontWeight: 'bold', color: '#0072B1', marginTop: 5 }
 });

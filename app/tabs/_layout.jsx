@@ -2,7 +2,6 @@ import { Tabs } from "expo-router";
 import { useEffect, useRef } from "react";
 import { Animated, Dimensions, PixelRatio, Pressable } from "react-native";
 
-
 import Entypo from "@expo/vector-icons/Entypo";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
@@ -22,17 +21,13 @@ const ICON_SIZE = Math.min(width * 0.075, 32);
 const HEADER_FONT = scaleFont(18);
 const HEADER_HEIGHT = Math.max(height * 0.10, 60);
 
-
-
 export default function Layout() {
-
   return (
-
     <Tabs
       screenOptions={{
         headerShown: true,
         headerStyle: {
-          backgroundColor: "#000",
+          backgroundColor: "#0072B1",
           height: HEADER_HEIGHT,
         },
         headerTitleAlign: "center",
@@ -41,24 +36,23 @@ export default function Layout() {
           fontSize: HEADER_FONT,
         },
 
-        // ❗ Desativa o label nativo (para usar apenas nosso custom)
-        tabBarActiveTintColor: "#fff",
-        tabBarInactiveTintColor: "#9c9c9c",
-       
+        // Configurações da TabBar
+        tabBarActiveTintColor: "#ffffff", // Cor do ícone quando ativo
+        tabBarInactiveTintColor: "#bbbbbbce", // Cor do ícone quando inativo
+        tabBarShowLabel: true,
         tabBarStyle: {
           position: "absolute",
           height: height * 0.11,
-          backgroundColor: "#000",
+          backgroundColor: "#0072B1",
           borderTopWidth: 0,
-          elevation: 10,
+          elevation: 20,
         },
 
-        // 🔥 Usa nosso botão customizado
+        // 🔥 Usa nosso botão customizado com animação suave
         tabBarButton: (props) => (
           <CustomTabBarButton
             {...props}
             accessibilityLabel={props.accessibilityLabel}
-          
           />
         ),
       }}
@@ -117,7 +111,6 @@ export default function Layout() {
         }}
       />
     </Tabs>
- 
   );
 }
 
@@ -128,15 +121,38 @@ function CustomTabBarButton({
   accessibilityLabel,
 }) {
   const focused = accessibilityState?.selected ?? false;
+  
+  // Referências para animação
   const scale = useRef(new Animated.Value(focused ? 1.2 : 1)).current;
+  const animValue = useRef(new Animated.Value(focused ? 1 : 0)).current;
 
   useEffect(() => {
-    Animated.spring(scale, {
-      toValue: focused ? 1.2 : 1,
-      friction: 6,
-      useNativeDriver: true,
-    }).start();
+    Animated.parallel([
+      // Animação de escala (Spring para ser elástico)
+      Animated.spring(scale, {
+        toValue: focused ? 1.2 : 1,
+        friction: 6,
+        useNativeDriver: true,
+      }),
+      // Animação de cor/fundo (Timing para ser suave)
+      Animated.timing(animValue, {
+        toValue: focused ? 1 : 0,
+        duration: 250,
+        useNativeDriver: false, // Necessário false para cores
+      }),
+    ]).start();
   }, [focused]);
+
+  // Interpolação de cores
+  const backgroundColor = animValue.interpolate({
+    inputRange: [0, 1],
+    outputRange: ["transparent", "#c92626ff"],
+  });
+
+  const textColor = animValue.interpolate({
+    inputRange: [0, 1],
+    outputRange: ["#9c9c9c", "#fff"],
+  });
 
   return (
     <Pressable
@@ -154,21 +170,18 @@ function CustomTabBarButton({
           transform: [{ scale }],
         }}
       >
-        {/* Ícone */}
+        {/* O children aqui contém o ícone, que já recebe a 'color' do Tabs.Screen */}
         {children}
 
-        {/* Label custom */}
+        {/* Label custom com transição suave */}
         <Animated.Text
           style={{
             marginTop: 4,
             paddingHorizontal: 10,
             paddingVertical: 2,
             borderRadius: 8,
-
-            // 🔥 Cor e fundo de acordo com o foco
-            color: focused ? "#fff" : "#9c9c9c",
-            backgroundColor: focused ? "#c92626ff" : "transparents",
-            // 📐 Estilo responsivo
+            color: textColor,
+            backgroundColor: backgroundColor,
             fontSize: scaleFont(12),
             fontWeight: "bold",
           }}

@@ -2,6 +2,7 @@ import Entypo from '@expo/vector-icons/Entypo';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 import FontAwesome5 from '@expo/vector-icons/FontAwesome5';
 import Ionicons from '@expo/vector-icons/Ionicons';
+import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { useRouter } from "expo-router";
 import { useContext } from 'react';
 import {
@@ -85,8 +86,8 @@ export default function Menu() {
         {/* PlayList */}
         <TouchableOpacity onPress={goPresence} style={styles.button}>
           
-          <Entypo name="google-play" size={normalize(28)} color="#ca0b0b" />
-          <Text style={styles.text}>PlayList</Text>
+          <MaterialIcons name="monitor" size={normalize(28)} color="black" />
+          <Text style={styles.text}>Monitor</Text>
         </TouchableOpacity>
 
         {/* Palavra do Dia */}
@@ -187,7 +188,7 @@ const styles = StyleSheet.create({
     color: '#fff',
   },
   buttonExit: {
-    backgroundColor: '#3f3a3c',
+    backgroundColor: '#0073b1d7',
     width: '90%',
     height: normalize(55),
     flexDirection: 'row',

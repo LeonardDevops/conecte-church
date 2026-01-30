@@ -2,18 +2,18 @@ import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useEffect, useState } from 'react';
 import {
-    ActivityIndicator,
-    Alert,
-    Dimensions,
-    KeyboardAvoidingView,
-    PixelRatio,
-    Platform,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View
+  ActivityIndicator,
+  Alert,
+  Dimensions,
+  KeyboardAvoidingView,
+  PixelRatio,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View
 } from 'react-native';
 import QRCode from 'react-native-qrcode-svg';
 
@@ -266,7 +266,7 @@ const styles = StyleSheet.create({
   input: { flex: 1, paddingHorizontal: 12, fontSize: normalize(16), color: '#000', fontWeight: '500' },
   
   btnMain: {
-    backgroundColor: '#000',
+    backgroundColor: '#0072B1',
     height: normalize(58),
     borderRadius: 16,
     flexDirection: 'row',

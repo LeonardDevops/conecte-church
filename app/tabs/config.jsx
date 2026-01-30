@@ -10,6 +10,13 @@ import {
   ActivityIndicator // Adicionado para feedback visual
   ,
 
+
+
+
+
+
+
+
   Alert,
   Dimensions,
   Image,
@@ -219,7 +226,7 @@ const Input = ({ icon, mask, ...props }) => (
 );
 
 const styles = StyleSheet.create({
-  header: { backgroundColor: '#000', alignItems: 'center', paddingTop: 20, paddingBottom: 60, width: '100%' },
+  header: { backgroundColor: '#0072B1', alignItems: 'center', paddingTop: 20, paddingBottom: 60, width: '100%', marginTop: 1 },
   nameCard: { width: '98%', alignItems: "center", marginBottom: 10 },
   nameText: { color: '#fff', fontSize: normalize(16) },
   avatarWrapper: {

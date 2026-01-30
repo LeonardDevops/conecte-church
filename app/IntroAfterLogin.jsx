@@ -1,13 +1,21 @@
 import { FontAwesome5, MaterialCommunityIcons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { useContext, useEffect, useRef, useState } from "react";
-import { Animated, Dimensions, Easing, StyleSheet, Text, View } from "react-native";
+import { Animated, Dimensions, Easing, StatusBar, StyleSheet, Text, View } from "react-native";
 import { AppContext } from "../src/Data/contextApi";
 import { getItem } from "../src/Data/storage";
 
 const { width } = Dimensions.get("window");
 
-// Definição dos ícones minimalistas
+// --- CORES CONFIGURADAS COM #0072B1 ---
+const THEME = {
+  background: "#FFFFFF",      // Branco puro para máximo contraste
+  primary: "#0072B1",         // O seu Azul específico
+  textMain: "#0072B1",        // Porcentagem no mesmo tom
+  textSecondary: "#546E7A",   // Cinza azulado para o subtexto
+  progressTrack: "#E1E8ED",   // Cinza muito claro para o fundo da barra
+};
+
 const icons = [
   { lib: FontAwesome5, name: "dove" },
   { lib: FontAwesome5, name: "cross" },
@@ -26,8 +34,10 @@ export default function IntroAfterLogin() {
 
   useEffect(() => {
     const uidGetAsyncStorage = getItem("uid");
+    
     if (userContext.isLogged === false || !uidGetAsyncStorage) {
-      return router.push("/");
+      router.push("/");
+      return;
     }
 
     const animateNext = () => {
@@ -62,7 +72,7 @@ export default function IntroAfterLogin() {
       });
     }, 2000);
 
-    // Barra de progresso de 0 a 100
+    // Animação da barra (6 segundos)
     Animated.timing(progressAnim, {
       toValue: 1,
       duration: 6000,
@@ -88,24 +98,33 @@ export default function IntroAfterLogin() {
   const CurrentIcon = icons[index].lib;
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: THEME.background }]}>
+      <StatusBar barStyle="dark-content" backgroundColor={THEME.background} />
+      
       <View style={styles.content}>
         <Animated.View style={{ opacity: fadeAnim, transform: [{ scale: scaleAnim }] }}>
-          <CurrentIcon name={icons[index].name} size={width * 0.25} color="#1A1A1A" />
+          <CurrentIcon name={icons[index].name} size={width * 0.25} color={THEME.primary} />
         </Animated.View>
       </View>
 
       <View style={styles.footer}>
-        <Text style={styles.percentText}>{percent}%</Text>
-        <View style={styles.progressTrack}>
+        <Text style={[styles.percentText, { color: THEME.textMain }]}>{percent}%</Text>
+        
+        <View style={[styles.progressTrack, { backgroundColor: THEME.progressTrack }]}>
           <Animated.View 
             style={[
               styles.progressBar, 
-              { width: progressAnim.interpolate({ inputRange: [0, 1], outputRange: ['0%', '100%'] }) }
+              { 
+                backgroundColor: THEME.primary,
+                width: progressAnim.interpolate({ inputRange: [0, 1], outputRange: ['0%', '100%'] }) 
+              }
             ]} 
           />
         </View>
-        <Text style={styles.loadingSubtext}>Preparando sua experiência...</Text>
+        
+        <Text style={[styles.loadingSubtext, { color: THEME.textSecondary }]}>
+          Preparando sua experiência...
+        </Text>
       </View>
     </View>
   );
@@ -114,7 +133,6 @@ export default function IntroAfterLogin() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#FFFFFF",
   },
   content: {
     flex: 1,
@@ -126,28 +144,25 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   percentText: {
-    fontSize: 24,
-    fontWeight: "300", // Mais fino para parecer elegante
-    color: "#1A1A1A",
-    marginBottom: 15,
+    fontSize: 28,
+    fontWeight: "300",
+    marginBottom: 10,
     fontVariant: ['tabular-nums'],
   },
   progressTrack: {
     width: width * 0.6,
-    height: 3,
-    backgroundColor: "#E0E0E0",
+    height: 4,
     borderRadius: 2,
     overflow: "hidden",
   },
   progressBar: {
     height: "100%",
-    backgroundColor: "#1A1A1A",
   },
   loadingSubtext: {
-    marginTop: 15,
-    fontSize: 12,
-    color: "#999999",
-    letterSpacing: 1,
+    marginTop: 20,
+    fontSize: 11,
+    letterSpacing: 1.5,
     textTransform: "uppercase",
+    fontWeight: "600",
   },
 });

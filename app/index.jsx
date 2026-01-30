@@ -173,11 +173,11 @@ export default function Login() {
 
           <Image
             style={style.logo}
-            source={require("./img/meta.webp")}
+            source={require("./img/logo.empresa.png")}
             resizeMode="contain"
           />
 
-          <Text style={style.text}>Ministério Evangelistico Tálamo</Text>
+          <Text style={style.text}>Ministério Conecte Church</Text>
 
           <View style={style.inputContainer}>
             <TextInput
@@ -240,7 +240,7 @@ export default function Login() {
           </TouchableOpacity>
 
           <View style={style.bottomContainer}>
-            <Text style={style.textFooter}>Desenvolvido por IgrejaSmart.IO</Text>
+            <Text style={style.textFooter}>Desenvolvido por Conecte.Church</Text>
           </View>
         </View>
       </ScrollView>
@@ -275,8 +275,8 @@ const style = StyleSheet.create({
     zIndex: 10
   },
 
-  logo: { width: normalize(100), height: normalize(100), borderRadius: 20, marginBottom: 15 },
-  text: { fontSize: normalize(18), fontWeight: "700", color: "#222", marginBottom: 30, textAlign: "center" },
+  logo: { width: normalize(140), height: normalize(140), borderRadius: 300, marginBottom: 15 },
+  text: { fontSize: normalize(14), fontWeight: "700", color: "#222", marginBottom: 30, textAlign: "center" },
   
   inputContainer: { width: '100%' },
   
@@ -317,7 +317,7 @@ const style = StyleSheet.create({
     justifyContent: 'center',
   },
 
-  btnAcessar: { backgroundColor: "#000", width: "100%", height: normalize(55), borderRadius: 12, justifyContent: "center", alignItems: "center", marginBottom: 20, elevation: 2 },
+  btnAcessar: { backgroundColor: "#0072B1", width: "100%", height: normalize(55), borderRadius: 12, justifyContent: "center", alignItems: "center", marginBottom: 20, elevation: 2 },
   textLogin: { color: "#fff", fontSize: normalize(18), fontWeight: "bold" },
   pickerWrapper: { width: "100%", height: normalize(55), backgroundColor: "#fff", borderRadius: 12, justifyContent: "center", marginBottom: 25, borderWidth: 1, borderColor: '#eee' },
   picker: { width: "100%", color: "#555" },

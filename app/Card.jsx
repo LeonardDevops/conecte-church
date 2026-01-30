@@ -15,13 +15,15 @@ export default function Card() {
         <View style={styles.content}>
             <View style={styles.cardContainer}>
                 
-                {/* Cabeçalho do Card com Faixa de Destaque */}
+                {/* Cabeçalho do Card com a cor Azul da Logo */}
                 <View style={styles.headerCard}>
                     <View style={styles.headerInfo}>
-                        <Text style={styles.orgName}>Ministério Tálamo</Text>
+                        {/* Nome corrigido para Ministério Conecte Church */}
+                        <Text style={styles.orgName}>Ministério Conecte Church</Text>
                         <Text style={styles.cardType}>MEMBRO</Text>
                     </View>
-                    <Image style={styles.logoImg} source={require('./img/meta.webp')} />
+                    {/* Recomendo atualizar esta imagem para a logo nova em PNG transparente */}
+                    <Image style={styles.logoImg} source={require('./img/icon.png')} />
                 </View>
 
                 {/* Corpo de Dados */}
@@ -40,7 +42,8 @@ export default function Card() {
                         </View>
                         <View style={styles.dataColumn}>
                             <Text style={styles.label}>TIPO SANGUÍNEO</Text>
-                            <Text style={[styles.value, { color: '#ff4d4d' }]}>{userContext?.tsg || "---"}</Text>
+                            {/* Ajustado para uma cor neutra para não conflitar com o novo design */}
+                            <Text style={[styles.value, { color: '#000000' }]}>{userContext?.tsg || "---"}</Text>
                         </View>
                     </View>
 
@@ -51,7 +54,7 @@ export default function Card() {
                         </View>
                     </View>
 
-                    {/* Rodapé Interno com Atribuição */}
+                    {/* Rodapé Interno com Atribuição usando o Cinza da Logo */}
                     <View style={styles.footerInfo}>
                         <View>
                             <Text style={styles.labelDark}>ATRIBUIÇÃO / CARGO</Text>
@@ -77,7 +80,7 @@ const styles = StyleSheet.create({
         width: '100%',
         maxWidth: 400,
         height: normalize(230),
-        backgroundColor: '#1a1a1a',
+        backgroundColor: '#0072B1', // Cor principal da sua logo
         borderRadius: 15,
         overflow: 'hidden',
         elevation: 8,
@@ -90,11 +93,11 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
-        backgroundColor: '#000',
+        backgroundColor: 'rgba(0,0,0,0.15)', // Um tom escurecido sutil para o header
         paddingHorizontal: normalize(15),
         paddingVertical: normalize(10),
-        borderBottomWidth: 2,
-        borderBottomColor: '#333'
+        borderBottomWidth: 1,
+        borderBottomColor: 'rgba(255,255,255,0.1)'
     },
     headerInfo: {
         flex: 1
@@ -106,15 +109,15 @@ const styles = StyleSheet.create({
         letterSpacing: 1
     },
     cardType: {
-        color: '#aaa',
+        color: '#e0e0e0', // Cinza claro para o subtítulo
         fontSize: normalize(10),
         fontWeight: '600'
     },
     logoImg: {
-        width: normalize(45),
-        height: normalize(45),
+        width: normalize(50),
+        height: normalize(46),
         borderRadius: 5,
-        backgroundColor: '#fff'
+        backgroundColor: '#fff', // Fundo branco para destacar a logo colorida
     },
     bodyCard: {
         flex: 1,
@@ -133,7 +136,7 @@ const styles = StyleSheet.create({
         flexDirection: 'column'
     },
     label: {
-        color: '#777',
+        color: '#b0d4e8', // Tom de azul claro para labels sobre o fundo azul
         fontSize: normalize(9),
         fontWeight: 'bold',
         marginBottom: 2
@@ -145,24 +148,25 @@ const styles = StyleSheet.create({
         textTransform: 'uppercase'
     },
     footerInfo: {
-        backgroundColor: '#e2dfdf',
+        backgroundColor: '#F2F2F2', // O cinza suave que sugerimos antes
         marginHorizontal: normalize(-12),
         marginBottom: normalize(-12),
-        padding: normalize(3),
+        padding: normalize(8),
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center'
     },
     labelDark: {
-        color: '#444',
+        color: '#58595B', // O Cinza exato da palavra "CHURCH"
         fontSize: normalize(8),
         fontWeight: 'bold',
+        marginLeft: "5%"
     },
     valueDark: {
         color: '#000',
         fontSize: normalize(12),
         fontWeight: 'bold',
         textTransform: 'uppercase',
-        marginLeft:"5%"
+        marginLeft: "5%"
     }
 });
