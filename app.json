@@ -1,10 +1,10 @@
 {
   "expo": {
     "name": "Conecte Church",
-    "slug": "conecte-church",
+    "slug": "meta",
     "version": "1.1.0",
     "orientation": "portrait",
-    "icon": "./assets/icon.png", 
+    "icon": "./assets/icon.png",
     "scheme": "conecte-church",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
@@ -18,7 +18,7 @@
     "android": {
       "adaptiveIcon": {
         "backgroundColor": "#0072B1",
-        "foregroundImage": "./assets/adaptive-icon.png"
+        "foregroundImage": "./assets/icon.png"
       },
       "edgeToEdgeEnabled": true,
       "permissions": [
@@ -44,7 +44,7 @@
           "image": "./assets/splash.png",
           "imageWidth": 200,
           "resizeMode": "contain",
-          "backgroundColor": "#0072B1" 
+          "backgroundColor": "#0072B1"
         }
       ],
       [
@@ -70,6 +70,7 @@
     },
     "runtimeVersion": {
       "policy": "appVersion"
-    }
+    },
+    "owner": "leonardo92"
   }
 }
