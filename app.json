@@ -4,7 +4,7 @@
     "slug": "conecte-church",
     "version": "1.1.0",
     "orientation": "portrait",
-    "icon": "",
+    "icon": "./assets/icon.png", 
     "scheme": "conecte-church",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
@@ -18,7 +18,7 @@
     "android": {
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
-        "foregroundImage": "./app/img/icon.png"
+        "foregroundImage": "./assets/icon.png" 
       },
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
@@ -32,7 +32,7 @@
     },
     "web": {
       "output": "static",
-      "favicon": ""
+      "favicon": "./assets/favicon.png"
     },
     "plugins": [
       "expo-notifications",
@@ -49,10 +49,7 @@
           "image": "./assets/icon.png",
           "imageWidth": 200,
           "resizeMode": "contain",
-          "backgroundColor": "#ffffff",
-          "dark": {
-            "backgroundColor": "#ffffff"
-          }
+          "backgroundColor": "#ffffff"
         }
       ],
       [
