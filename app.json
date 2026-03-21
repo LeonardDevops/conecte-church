@@ -1,10 +1,10 @@
 {
   "expo": {
-    "name": "Conecte Church",
-    "slug": "meta",
+    "name": "conecte-church",
+    "slug": "conecte-church",
     "version": "1.1.0",
     "orientation": "portrait",
-    "icon": "./assets/icon.png",
+    "icon": "",
     "scheme": "conecte-church",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
@@ -17,10 +17,11 @@
     },
     "android": {
       "adaptiveIcon": {
-        "backgroundColor": "#0072B1",
-        "foregroundImage": "./assets/icon.png"
+        "backgroundColor": "#E6F4FE",
+        "foregroundImage": "./app/img/icon.png"
       },
       "edgeToEdgeEnabled": true,
+      "predictiveBackGestureEnabled": false,
       "permissions": [
         "android.permission.READ_CALENDAR",
         "android.permission.WRITE_CALENDAR",
@@ -29,28 +30,35 @@
       "package": "com.leonardo92.meta",
       "versionCode": 4
     },
+    "web": {
+      "output": "static",
+      "favicon": ""
+    },
     "plugins": [
       "expo-notifications",
       [
         "expo-calendar",
         {
-          "calendarPermission": "O aplicativo precisa acessar seu calendário para agendar eventos da igreja."
+          "calendarPermission": "The app needs to access your calendar."
         }
       ],
       "expo-router",
       [
         "expo-splash-screen",
         {
-          "image": "./assets/splash.png",
+          "image": "./assets/icon.png",
           "imageWidth": 200,
           "resizeMode": "contain",
-          "backgroundColor": "#0072B1"
+          "backgroundColor": "#ffffff",
+          "dark": {
+            "backgroundColor": "#ffffff"
+          }
         }
       ],
       [
         "expo-image-picker",
         {
-          "photosPermission": "O aplicativo acessa suas fotos para permitir o compartilhamento com a comunidade."
+          "photosPermission": "The app accesses your photos to let you share them with your friends."
         }
       ],
       "expo-web-browser",
@@ -61,16 +69,16 @@
       "reactCompiler": true
     },
     "extra": {
+      "router": {},
       "eas": {
         "projectId": "87740c97-0dc1-4462-a097-de851cc81c5b"
       }
     },
-    "updates": {
-      "url": "https://u.expo.dev/87740c97-0dc1-4462-a097-de851cc81c5b"
-    },
     "runtimeVersion": {
       "policy": "appVersion"
     },
-    "owner": "leonardo92"
+    "updates": {
+      "url": "https://u.expo.dev/87740c97-0dc1-4462-a097-de851cc81c5b"
+    }
   }
 }
