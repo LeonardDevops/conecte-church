@@ -9,7 +9,11 @@
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.leonardo92.meta",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -21,17 +25,17 @@
       "permissions": [
         "android.permission.READ_CALENDAR",
         "android.permission.WRITE_CALENDAR",
-        "android.permission.READ_CALENDAR",
-        "android.permission.WRITE_CALENDAR"
+        "android.permission.RECORD_AUDIO"
       ],
       "package": "com.leonardo92.meta",
-      "versionCode": 2
+      "versionCode": 4
     },
     "web": {
       "output": "static",
       "favicon": ""
     },
     "plugins": [
+      "expo-notifications",
       [
         "expo-calendar",
         {
