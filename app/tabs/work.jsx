@@ -14,16 +14,14 @@ import {
   View
 } from "react-native";
 import { Calendar, LocaleConfig } from 'react-native-calendars';
-import { useSharedValue } from 'react-native-reanimated';
 import Toast from 'react-native-toast-message';
 import { db } from "../../src/Data/FirebaseConfig";
 import { AppContext } from '../../src/Data/contextApi';
 
-const { width, height } = Dimensions.get("window");
+const { width } = Dimensions.get("window");
 const scale = width / 375;
 const normalize = (size) => Math.round(PixelRatio.roundToNearestPixel(size * scale));
 
-// Configuração do Calendário para Português
 LocaleConfig.locales['pt-br'] = {
   monthNames: ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'],
   monthNamesShort: ['Jan.','Fev.','Mar.','Abr.','Mai.','Jun.','Jul.','Ago.','Set.','Out.','Nov.','Dez.'],
@@ -35,168 +33,137 @@ LocaleConfig.defaultLocale = 'pt-br';
 
 export default function Work() {
   const { userContext } = useContext(AppContext);
-
   const [selectedDate, setSelectedDate] = useState("");
   const [evento, setEvento] = useState(""); 
-  const [openDrawer, setOpenDrawer] = useState(false);
-  const [listaTarefas, setListaTarefas] = useState([]);
   const [listaGrupos, setListaGrupos] = useState([]); 
   const [selectedGroupId, setSelectedGroupId] = useState(""); 
-
-  const widthValue = useSharedValue(0);
-  const heightValue = useSharedValue(0);
-
-  async function addEvento() {
-    if (!selectedDate || evento.trim() === "" || !selectedGroupId) {
-      Toast.show({
-        type: 'error',
-        text1: 'Preencha todos os campos!',
-      });
-      return;
-    }
-
-    if (!userContext?.id) {
-      Toast.show({ type: 'error', text1: 'Usuário não encontrado!' });
-      return;
-    }
-
-    await addDoc(collection(db, "tasks"), {
-      evento: evento.trim(),
-      idUser: userContext.id,
-      idTaskOption: selectedGroupId,
-      data: selectedDate,
-      grupo: selectedGroupId.replace(/^.*\?/, "") 
-    })
-    .then(() => {
-      Toast.show({
-        type: 'success',
-        text1: 'Tarefa adicionada com sucesso!',
-      });
-      setEvento('');
-      setSelectedGroupId('');
-    })
-    .catch((error) => {
-      console.log('Erro ao adicionar tarefa:', error);
-      Toast.show({ type: 'error', text1: 'Erro ao adicionar tarefa' });
-    });
-  }
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     const auth = getAuth();
-    onAuthStateChanged(auth, (user)=> {
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
       if (user) {
-      async function getGrupos() {
-    
-          const uid = user.uid;
-          console.log(uid); 
-          
-          
-          
-          try {
-            const snapshot = await getDocs(collection(db, 'tasksOpitions'));
-            const data = [];
-            snapshot.forEach((doc) => {
-          const options = doc.data().options || [];
-          options.forEach((option) => {
-            data.push({
-              id: `${doc.id}?${option}`,
-              taskOption: option
-            });
+        fetchGrupos();
+      }
+    });
+    return () => unsubscribe();
+  }, []);
+
+  async function fetchGrupos() {
+    try {
+      const snapshot = await getDocs(collection(db, 'tasksOpitions'));
+      const data = [];
+      snapshot.forEach((doc) => {
+        const options = doc.data().options || [];
+        options.forEach((option) => {
+          data.push({
+            id: `${doc.id}?${option}`,
+            taskOption: option
           });
         });
-        setListaGrupos(data);
-      } catch (error) {
-        console.error('Erro ao buscar grupos:', error);
-      }
-    } 
-    getGrupos();
-  } else {
-    alert("usuario nao tem permissao")
+      });
+      setListaGrupos(data);
+    } catch (error) {
+      console.error('Erro ao buscar grupos:', error);
+    }
   }
 
- 
-})
-  }, []);
+  async function addEvento() {
+    if (!selectedDate || evento.trim() === "" || !selectedGroupId) {
+      return Toast.show({ type: 'error', text1: 'Atenção', text2: 'Preencha todos os campos!' });
+    }
+
+    setLoading(true);
+    try {
+      await addDoc(collection(db, "tasks"), {
+        evento: evento.trim(),
+        idUser: userContext?.uid || getAuth().currentUser?.uid,
+        idTaskOption: selectedGroupId,
+        data: selectedDate,
+        grupo: selectedGroupId.split('?')[1], 
+        createdAt: new Date()
+      });
+
+      Toast.show({ type: 'success', text1: 'Sucesso!', text2: 'Tarefa agendada com sucesso.' });
+      setEvento('');
+      setSelectedGroupId('');
+      setSelectedDate('');
+    } catch (error) {
+      Toast.show({ type: 'error', text1: 'Erro', text2: 'Não foi possível salvar.' });
+    } finally {
+      setLoading(false);
+    }
+  }
 
   return (
     <View style={styles.mainContainer}>
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 50 }}>
         
-        {/* CARD DE INPUT PRINCIPAL */}
+        <View style={styles.headerSpacer}>
+          <Text style={styles.headerTitle}>Nova Atividade</Text>
+          <Text style={styles.headerSubtitle}>Organize suas tarefas ministeriais</Text>
+        </View>
+
         <View style={styles.inputCard}>
-          <Text style={styles.label}>O que precisa ser feito?</Text>
+          <Text style={styles.label}>Descrição da Tarefa</Text>
           <View style={styles.actionRow}>
             <TextInput
-              onChangeText={(e) => setEvento(e)}
+              onChangeText={setEvento}
               value={evento}
-              placeholder="Digite a tarefa..."
-              placeholderTextColor="#999"
+              placeholder="O que será feito?"
+              placeholderTextColor="#ADB5BD"
               style={styles.textInput}
             />
-            <TouchableOpacity onPress={addEvento} style={styles.addButton} activeOpacity={0.7}>
-              <Feather name="check-circle" size={normalize(24)} color="#fff" />
-            </TouchableOpacity>
           </View>
         </View>
 
-        {/* ÁREA DO SELETOR DE CATEGORIA */}
         <View style={styles.pickerSection}>
-          <Text style={styles.label}>Categoria / Grupo</Text>
+          <Text style={styles.label}>Departamento / Grupo</Text>
           <View style={styles.pickerWrapper}>
             <Picker
               selectedValue={selectedGroupId}
-              onValueChange={(itemValue) => setSelectedGroupId(itemValue)}
+              onValueChange={(v) => setSelectedGroupId(v)}
               style={styles.pickerStyle}
-              dropdownIconColor="#000"
-              mode="dropdown"
+              dropdownIconColor="#0072B1"
             >
-              <Picker.Item label='Selecione uma opção...' value='' color="#dddddd"/>
+              <Picker.Item label='Selecione o grupo...' value='' color="#999" />
               {listaGrupos.map((item) => (
-                <Picker.Item
-                  key={item.id}
-                  label={item.taskOption}
-                  value={item.id}
-                  color="#dddddd"
-                />
+                <Picker.Item key={item.id} label={item.taskOption} value={item.id} color="#444" />
               ))}
             </Picker>
           </View>
         </View>
 
-        {/* CALENDÁRIO PROFISSIONAL */}
         <View style={styles.calendarCard}>
-          <Text style={styles.label}>Data da Atividade</Text>
+          <Text style={styles.label}>Data Selecionada: {selectedDate || 'Nenhuma'}</Text>
           <Calendar
             theme={{
-              backgroundColor: '#ffffff',
-              calendarBackground: '#ffffff',
-              textSectionTitleColor: '#b6c1cd',
-              selectedDayBackgroundColor: '#000',
+              todayTextColor: '#0072B1',
+              selectedDayBackgroundColor: '#0072B1',
               selectedDayTextColor: '#ffffff',
-              todayTextColor: '#00a516',
-              dayTextColor: '#2d4150',
-              textDisabledColor: '#d9e1e8',
-              dotColor: '#00adf5',
-              selectedDotColor: '#ffffff',
-              arrowColor: '#000',
-              monthTextColor: '#000',
-              textDayFontWeight: '400',
+              arrowColor: '#0072B1',
+              monthTextColor: '#1A1A1A',
               textMonthFontWeight: 'bold',
               textDayHeaderFontWeight: '600',
-              textDayFontSize: normalize(14),
-              textMonthFontSize: normalize(16),
-              textDayHeaderFontSize: normalize(12)
             }}
             onDayPress={(day) => setSelectedDate(day.dateString)}
             markedDates={{
-              [selectedDate]: { 
-                selected: true, 
-                disableTouchEvent: true, 
-                selectedColor: '#000' 
-              }
+              [selectedDate]: { selected: true, selectedColor: '#0072B1' }
             }}
           />
         </View>
+
+        <TouchableOpacity 
+          onPress={addEvento} 
+          style={[styles.saveButton, loading && { opacity: 0.7 }]} 
+          disabled={loading}
+        >
+          <Text style={styles.saveButtonText}>Agendar Atividade</Text>
+          <Feather name="calendar" size={18} color="#fff" />
+        </TouchableOpacity>
+          <View>
+
+          </View>
 
       </ScrollView>
       <Toast />
@@ -205,85 +172,17 @@ export default function Work() {
 }
 
 const styles = StyleSheet.create({
-  mainContainer: {
-    flex: 1,
-    backgroundColor: '#F2F2F2',
-    paddingHorizontal: width * 0.05,
-  },
-  label: {
-    fontSize: normalize(12),
-    fontWeight: '800',
-    color: '#555',
-    marginBottom: 8,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-  },
-  inputCard: {
-    backgroundColor: '#fff',
-    borderRadius: 16,
-    padding: 16,
-    marginTop: 20,
-    marginBottom: 20,
-    elevation: 4,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-  },
-  actionRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  textInput: {
-    flex: 1,
-    height: normalize(50),
-    backgroundColor: '#F8F9FA',
-    borderRadius: 12,
-    paddingHorizontal: 15,
-    fontSize: normalize(15),
-    color: '#000',
-    borderWidth: 1,
-    borderColor: '#E9ECEF',
-  },
-  addButton: {
-    width: normalize(50),
-    height: normalize(50),
-    backgroundColor: '#00a516',
-    borderRadius: 12,
-    justifyContent: 'center',
-    alignItems: 'center',
-    elevation: 2,
-  },
-  pickerSection: {
-    marginBottom: 20,
-  },
-  pickerWrapper: {
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#E9ECEF',
-    height: normalize(55),
-    justifyContent: 'center',
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 3,
-  },
-  pickerStyle: {
-    width: '100%',
-    color: '#000',
-  },
-  calendarCard: {
-    backgroundColor: '#fff',
-    borderRadius: 16,
-    padding: 15,
-    elevation: 4,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    marginBottom: 30,
-  },
+  mainContainer: { flex: 1, backgroundColor: '#F8F9FB', paddingHorizontal: width * 0.06 },
+  headerSpacer: { marginTop: 15, marginBottom: 20 },
+  headerTitle: { fontSize: normalize(22), fontWeight: '900', color: '#1A1A1A' },
+  headerSubtitle: { fontSize: normalize(14), color: '#888' },
+  label: { fontSize: normalize(11), fontWeight: '800', color: '#495057', marginBottom: 10, textTransform: 'uppercase', letterSpacing: 1 },
+  inputCard: { backgroundColor: '#fff', borderRadius: 20, padding: 20, marginBottom: 20, elevation: 2, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 10 },
+  textInput: { height: normalize(55), backgroundColor: '#F1F3F5', borderRadius: 14, paddingHorizontal: 15, fontSize: normalize(15), color: '#000' },
+  pickerSection: { marginBottom: 20 },
+  pickerWrapper: { backgroundColor: '#fff', borderRadius: 16, borderWidth: 1, borderColor: '#E9ECEF', height: normalize(55), justifyContent: 'center' },
+  pickerStyle: { width: '100%' },
+  calendarCard: { backgroundColor: '#fff', borderRadius: 20, padding: 12, elevation: 2, shadowOpacity: 0.05, marginBottom: 10 },
+  saveButton: { backgroundColor: '#0072B1', height: normalize(58), borderRadius: 16, marginBottom: 28, flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 10, elevation: 4 },
+  saveButtonText: { color: '#fff', fontSize: normalize(16), fontWeight: 'bold' }
 });

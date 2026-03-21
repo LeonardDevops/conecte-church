@@ -3,8 +3,6 @@ import { Dimensions, Image, PixelRatio, StyleSheet, Text, View } from 'react-nat
 import { AppContext } from "../src/Data/contextApi";
 
 const { width } = Dimensions.get("window");
-
-// Função para escalonamento responsivo
 const scale = width / 375;
 const normalize = (size) => Math.round(PixelRatio.roundToNearestPixel(size * scale));
 
@@ -15,54 +13,63 @@ export default function Card() {
         <View style={styles.content}>
             <View style={styles.cardContainer}>
                 
-                {/* Cabeçalho do Card com a cor Azul da Logo */}
+                {/* Cabeçalho */}
                 <View style={styles.headerCard}>
                     <View style={styles.headerInfo}>
-                        {/* Nome corrigido para Ministério Conecte Church */}
-                        <Text style={styles.orgName}>Ministério Conecte Church</Text>
-                        <Text style={styles.cardType}>MEMBRO</Text>
+                        <Text style={styles.orgName} numberOfLines={1}>
+                            Ministério Conecte Church
+                        </Text>
+                        <Text style={styles.cardType}>MEMBRO ATIVO</Text>
                     </View>
-                    {/* Recomendo atualizar esta imagem para a logo nova em PNG transparente */}
-                    <Image style={styles.logoImg} source={require('./img/icon.png')} />
+                    <View style={styles.logoWrapper}>
+                        <Image 
+                            style={styles.logoImg} 
+                            source={require('./img/icon.png')} 
+                            resizeMode="contain"
+                        />
+                    </View>
                 </View>
 
                 {/* Corpo de Dados */}
                 <View style={styles.bodyCard}>
                     <View style={styles.dataRow}>
-                        <View style={styles.dataColumn}>
-                            <Text style={styles.label}>NOME COMPLETO</Text>
-                            <Text style={styles.value}>{userContext?.name || "---"}</Text>
-                        </View>
+                        <Text style={styles.label}>NOME COMPLETO</Text>
+                        <Text 
+                            style={styles.value} 
+                            numberOfLines={1} 
+                            adjustsFontSizeToFit
+                        >
+                            {userContext?.name || "NOME DO MEMBRO"}
+                        </Text>
                     </View>
 
                     <View style={styles.gridRow}>
                         <View style={styles.dataColumn}>
                             <Text style={styles.label}>NASCIMENTO</Text>
-                            <Text style={styles.value}>{userContext?.birthDate || "---"}</Text>
+                            <Text style={styles.value}>{userContext?.birthDate || "--/--/----"}</Text>
                         </View>
-                        <View style={styles.dataColumn}>
+                        <View style={[styles.dataColumn, { alignItems: 'flex-end' }]}>
                             <Text style={styles.label}>TIPO SANGUÍNEO</Text>
-                            {/* Ajustado para uma cor neutra para não conflitar com o novo design */}
-                            <Text style={[styles.value, { color: '#000000' }]}>{userContext?.tsg || "---"}</Text>
+                            <Text style={styles.value}>{userContext?.tsg || "N/A"}</Text>
                         </View>
                     </View>
 
                     <View style={styles.dataRow}>
-                        <View style={styles.dataColumn}>
-                            <Text style={styles.label}>CONTATO</Text>
-                            <Text style={styles.value}>{userContext?.phone || "---"}</Text>
-                        </View>
-                    </View>
-
-                    {/* Rodapé Interno com Atribuição usando o Cinza da Logo */}
-                    <View style={styles.footerInfo}>
-                        <View>
-                            <Text style={styles.labelDark}>ATRIBUIÇÃO / CARGO</Text>
-                            <Text style={styles.valueDark}>{userContext?.atribuicao || "Membro"}</Text>
-                        </View>
+                        <Text style={styles.label}>CONTATO</Text>
+                        <Text style={styles.value}>{userContext?.phone || "(00) 00000-0000"}</Text>
                     </View>
                 </View>
 
+                {/* Rodapé Interno */}
+                <View style={styles.footerInfo}>
+                    <View>
+                        <Text style={styles.labelDark}>ATRIBUIÇÃO / CARGO</Text>
+                        <Text style={styles.valueDark}>{userContext?.atribuicao || "MEMBRO"}</Text>
+                    </View>
+                    <View style={styles.validityBadge}>
+                        <Text style={styles.validityText}>DIGITAL</Text>
+                    </View>
+                </View>
             </View>
         </View>
     );
@@ -71,102 +78,110 @@ export default function Card() {
 const styles = StyleSheet.create({
     content: {
         flex: 1,
-        backgroundColor: '#f0f0f0',
+        backgroundColor: '#F2F2F2',
         justifyContent: 'center',
         alignItems: 'center',
-        padding: normalize(15)
+        padding: normalize(20)
     },
     cardContainer: {
         width: '100%',
-        maxWidth: 400,
-        height: normalize(230),
-        backgroundColor: '#0072B1', // Cor principal da sua logo
-        borderRadius: 15,
+        maxWidth: 450,
+        height: normalize(220),
+        backgroundColor: '#0072B1', // Seu Azul Oficial
+        borderRadius: 18,
         overflow: 'hidden',
-        elevation: 8,
+        elevation: 10,
         shadowColor: '#000',
-        shadowOffset: { width: 0, height: 4 },
+        shadowOffset: { width: 0, height: 5 },
         shadowOpacity: 0.3,
-        shadowRadius: 5,
+        shadowRadius: 6,
     },
     headerCard: {
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
-        backgroundColor: 'rgba(0,0,0,0.15)', // Um tom escurecido sutil para o header
+        backgroundColor: 'rgba(0,0,0,0.12)',
         paddingHorizontal: normalize(15),
-        paddingVertical: normalize(10),
-        borderBottomWidth: 1,
-        borderBottomColor: 'rgba(255,255,255,0.1)'
+        paddingVertical: normalize(4),
     },
-    headerInfo: {
-        flex: 1
-    },
+    headerInfo: { flex: 1 },
     orgName: {
         color: '#fff',
-        fontSize: normalize(14),
-        fontWeight: 'bold',
-        letterSpacing: 1
+        fontSize: normalize(13),
+        fontWeight: '900',
+        textTransform: 'uppercase',
+        letterSpacing: 0.5
     },
     cardType: {
-        color: '#e0e0e0', // Cinza claro para o subtítulo
-        fontSize: normalize(10),
-        fontWeight: '600'
+        color: 'rgba(255,255,255,0.7)',
+        fontSize: normalize(9),
+        fontWeight: 'bold',
+        marginTop: 3
     },
-    logoImg: {
-        width: normalize(50),
-        height: normalize(46),
-        borderRadius: 5,
-        backgroundColor: '#fff', // Fundo branco para destacar a logo colorida
+    logoWrapper: {
+        width: normalize(45),
+        height: normalize(45),
+        backgroundColor: '#FFF',
+        borderRadius: 10,
+        justifyContent: 'center',
+        alignItems: 'center',
+        padding: 5
     },
+    logoImg: { width: '100%', height: '100%' },
     bodyCard: {
         flex: 1,
-        padding: normalize(12),
-        justifyContent: 'space-between'
+        paddingHorizontal: normalize(15),
+        paddingTop: normalize(10),
     },
     gridRow: {
         flexDirection: 'row',
         justifyContent: 'space-between',
-        marginBottom: normalize(8)
+        marginVertical: normalize(8)
     },
-    dataRow: {
-        marginBottom: normalize(8)
-    },
-    dataColumn: {
-        flexDirection: 'column'
-    },
+    dataRow: { marginBottom: normalize(0) },
+    dataColumn: { flexDirection: 'column' },
     label: {
-        color: '#b0d4e8', // Tom de azul claro para labels sobre o fundo azul
-        fontSize: normalize(9),
+        color: 'rgba(255,255,255,0.6)',
+        fontSize: normalize(8),
         fontWeight: 'bold',
         marginBottom: 2
     },
     value: {
         color: '#fff',
-        fontSize: normalize(13),
-        fontWeight: '600',
+        fontSize: normalize(14),
+        fontWeight: '700',
         textTransform: 'uppercase'
     },
     footerInfo: {
-        backgroundColor: '#F2F2F2', // O cinza suave que sugerimos antes
-        marginHorizontal: normalize(-12),
-        marginBottom: normalize(-12),
-        padding: normalize(8),
+        backgroundColor: '#F8F9FA',
+        paddingHorizontal: normalize(15),
+        paddingVertical: normalize(8),
         flexDirection: 'row',
         justifyContent: 'space-between',
-        alignItems: 'center'
+        alignItems: 'center',
+        borderTopWidth: 1,
+        borderColor: 'rgba(0,0,0,0.05)'
     },
     labelDark: {
-        color: '#58595B', // O Cinza exato da palavra "CHURCH"
+        color: '#58595B', // Cinza da sua logo
         fontSize: normalize(8),
         fontWeight: 'bold',
-        marginLeft: "5%"
     },
     valueDark: {
-        color: '#000',
+        color: '#1A1A1A',
         fontSize: normalize(12),
-        fontWeight: 'bold',
+        fontWeight: '800',
         textTransform: 'uppercase',
-        marginLeft: "5%"
+    },
+    validityBadge: {
+        backgroundColor: '#0072B1',
+        paddingHorizontal: 10,
+        paddingVertical: 3,
+        borderRadius: 5
+    },
+    validityText: {
+        color: '#FFF',
+        fontSize: normalize(8),
+        fontWeight: 'bold'
     }
 });

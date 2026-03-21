@@ -1,11 +1,11 @@
 {
   "expo": {
-    "name": "meta",
-    "slug": "meta",
-    "version": "1.0.0",
+    "name": "Conecte Church",
+    "slug": "conecte-church",
+    "version": "1.1.0",
     "orientation": "portrait",
-    "icon": "",
-    "scheme": "meta",
+    "icon": "./assets/icon.png", 
+    "scheme": "conecte-church",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
@@ -17,11 +17,10 @@
     },
     "android": {
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
-        "foregroundImage": "./app/img/icon.png"
+        "backgroundColor": "#0072B1",
+        "foregroundImage": "./assets/adaptive-icon.png"
       },
       "edgeToEdgeEnabled": true,
-      "predictiveBackGestureEnabled": false,
       "permissions": [
         "android.permission.READ_CALENDAR",
         "android.permission.WRITE_CALENDAR",
@@ -30,35 +29,28 @@
       "package": "com.leonardo92.meta",
       "versionCode": 4
     },
-    "web": {
-      "output": "static",
-      "favicon": ""
-    },
     "plugins": [
       "expo-notifications",
       [
         "expo-calendar",
         {
-          "calendarPermission": "The app needs to access your calendar."
+          "calendarPermission": "O aplicativo precisa acessar seu calendário para agendar eventos da igreja."
         }
       ],
       "expo-router",
       [
         "expo-splash-screen",
         {
-          "image": "./assets/icon.png",
+          "image": "./assets/splash.png",
           "imageWidth": 200,
           "resizeMode": "contain",
-          "backgroundColor": "#ffffff",
-          "dark": {
-            "backgroundColor": "#ffffff"
-          }
+          "backgroundColor": "#0072B1" 
         }
       ],
       [
         "expo-image-picker",
         {
-          "photosPermission": "The app accesses your photos to let you share them with your friends."
+          "photosPermission": "O aplicativo acessa suas fotos para permitir o compartilhamento com a comunidade."
         }
       ],
       "expo-web-browser",
@@ -69,16 +61,15 @@
       "reactCompiler": true
     },
     "extra": {
-      "router": {},
       "eas": {
         "projectId": "87740c97-0dc1-4462-a097-de851cc81c5b"
       }
     },
-    "runtimeVersion": {
-      "policy": "appVersion"
-    },
     "updates": {
       "url": "https://u.expo.dev/87740c97-0dc1-4462-a097-de851cc81c5b"
+    },
+    "runtimeVersion": {
+      "policy": "appVersion"
     }
   }
 }

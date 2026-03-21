@@ -1,6 +1,8 @@
+import AntDesign from '@expo/vector-icons/AntDesign';
 import Entypo from '@expo/vector-icons/Entypo';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 import FontAwesome5 from '@expo/vector-icons/FontAwesome5';
+import FontAwesome6 from '@expo/vector-icons/FontAwesome6';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { useRouter } from "expo-router";
@@ -62,6 +64,10 @@ export default function Menu() {
     router.push('/Presence');
   }
   
+  function goPlayer(params) {
+    router.push('/Player');
+  }
+  
 
 
   return (
@@ -90,10 +96,20 @@ export default function Menu() {
           <Text style={styles.text}>Monitor</Text>
         </TouchableOpacity>
 
+        <TouchableOpacity onPress={goPlayer} style={styles.button}>
+          <FontAwesome6 name="music" size={normalize(28)} color="#f30505de" />
+          <Text style={styles.text}>Louvor</Text>
+        </TouchableOpacity>
+
         {/* Palavra do Dia */}
         <TouchableOpacity onPress={goHolyBiblie} style={styles.button}>
+          <AntDesign name="comment" size={normalize(28)} color="#b33711" />
+          <Text style={styles.text}>pedido de oracao</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity onPress={goHolyBiblie} style={styles.button}>
           <FontAwesome5 name="bible" size={normalize(28)} color="#b35f11" />
-          <Text style={styles.text}>Palavra do Dia</Text>
+          <Text style={styles.text}>Biblia</Text>
         </TouchableOpacity>
 
         {/* Tarefas */}

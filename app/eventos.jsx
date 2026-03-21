@@ -1,22 +1,22 @@
 import FontAwesome5 from '@expo/vector-icons/FontAwesome5';
 import {
-  collection,
-  deleteDoc,
-  doc,
-  onSnapshot,
-  query,
-  where
+    collection,
+    deleteDoc,
+    doc,
+    onSnapshot,
+    query,
+    where
 } from 'firebase/firestore';
 import { useContext, useEffect, useState } from 'react';
 import {
-  Alert,
-  Dimensions,
-  FlatList,
-  PixelRatio,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
+    Alert,
+    Dimensions,
+    FlatList,
+    PixelRatio,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View,
 } from 'react-native';
 import { AppContext } from '../src/Data/contextApi';
 import { db } from "../src/Data/FirebaseConfig";
@@ -30,6 +30,7 @@ export default function Tasks() {
     const { userContext } = useContext(AppContext);
 
     useEffect(() => {
+        // Verifica se o ID do usuário existe para evitar erro na query
         if (!userContext?.id) return;
 
         const q = query(
@@ -37,6 +38,7 @@ export default function Tasks() {
             where("idUser", "==", userContext.id),
         );
 
+        // Listener em tempo real
         const unsubscribe = onSnapshot(q, (querySnapshot) => {
             const list = [];
             querySnapshot.forEach((docSnap) => {
@@ -46,13 +48,20 @@ export default function Tasks() {
                 });
             });
 
-            // Ordenar por data (opcional, mas recomendado para profissionalismo)
-            list.sort((a, b) => new Date(a.data) - new Date(b.data));
+            // Ordenação segura: do mais recente para o mais antigo
+            list.sort((a, b) => {
+                const dateA = new Date(a.data);
+                const dateB = new Date(b.data);
+                return dateB - dateA;
+            });
+
             setTasks(list);
+        }, (error) => {
+            console.error("Erro no listener de tarefas:", error);
         });
 
         return () => unsubscribe();
-    }, [userContext.id]);
+    }, [userContext?.id]);
 
     const handleDelete = (id) => {
         Alert.alert(
@@ -67,7 +76,7 @@ export default function Tasks() {
                         try {
                             await deleteDoc(doc(db, "tasks", id));
                         } catch (e) {
-                            console.error("Erro ao deletar", e);
+                            Alert.alert("Erro", "Não foi possível excluir a tarefa.");
                         }
                     },
                 },
@@ -77,16 +86,18 @@ export default function Tasks() {
 
     const renderItem = ({ item }) => (
         <View style={styles.card}>
-            {/* Indicador lateral colorido baseado no grupo */}
+            {/* Indicador lateral usando sua cor principal #0072B1 */}
             <View style={styles.groupIndicator} />
             
             <View style={styles.infoContainer}>
                 <View style={styles.headerRow}>
-                    <Text style={styles.grupoText}>{item.grupo}</Text>
+                    <Text style={styles.grupoText}>{item.grupo || "Geral"}</Text>
                     <Text style={styles.dataText}>{item.data}</Text>
                 </View>
                 
-                <Text style={styles.eventoText}>{item.evento}</Text>
+                <Text style={styles.eventoText} numberOfLines={2}>
+                    {item.evento}
+                </Text>
             </View>
 
             <TouchableOpacity 
@@ -103,7 +114,9 @@ export default function Tasks() {
         <View style={styles.body}>
             <View style={styles.headerContainer}>
                 <Text style={styles.title}>Minha Agenda</Text>
-                <Text style={styles.subtitle}>{tasks.length} tarefas encontradas</Text>
+                <Text style={styles.subtitle}>
+                    {tasks.length === 1 ? "1 tarefa encontrada" : `${tasks.length} tarefas encontradas`}
+                </Text>
             </View>
 
             <FlatList
@@ -117,8 +130,9 @@ export default function Tasks() {
                 ]}
                 ListEmptyComponent={
                     <View style={styles.emptyBox}>
-                        <FontAwesome5 name="clipboard-check" size={50} color="#DDD" />
-                        <Text style={styles.emptyText}>Tudo em dia por aqui!</Text>
+                        <FontAwesome5 name="calendar-check" size={normalize(60)} color="#E0E0E0" />
+                        <Text style={styles.emptyText}>Sua agenda está vazia!</Text>
+                        <Text style={styles.emptySubText}>Tudo em dia por aqui.</Text>
                     </View>
                 }
             />
@@ -130,25 +144,27 @@ const styles = StyleSheet.create({
     body: {
         flex: 1,
         backgroundColor: '#F8F9FB',
-        paddingTop: normalize(20),
     },
     headerContainer: {
         paddingHorizontal: normalize(20),
-        marginBottom: normalize(20),
+        paddingTop: normalize(30),
+        marginBottom: normalize(15),
     },
     title: {
-        fontSize: normalize(24),
-        fontWeight: '800',
+        fontSize: normalize(26),
+        fontWeight: '900',
         color: '#1A1A1A',
     },
     subtitle: {
         fontSize: normalize(13),
         color: '#888',
         fontWeight: '500',
+        marginTop: 2,
     },
     listContent: {
         paddingHorizontal: normalize(15),
-        paddingBottom: 30,
+        paddingBottom: 40,
+        flexGrow: 1,
     },
     card: {
         backgroundColor: '#FFF',
@@ -156,19 +172,21 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         marginBottom: normalize(12),
-        paddingVertical: normalize(12),
+        paddingVertical: normalize(14),
         paddingHorizontal: normalize(15),
-        // Sombras profissionais
-        elevation: 3,
+        // Sombras suaves e profissionais
+        elevation: 2,
         shadowColor: '#000',
         shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.05,
-        shadowRadius: 10,
+        shadowOpacity: 0.04,
+        shadowRadius: 8,
+        borderWidth: 1,
+        borderColor: '#F0F0F0',
     },
     groupIndicator: {
         width: 4,
-        height: '70%',
-        backgroundColor: '#000', // Pode variar conforme o grupo se desejar
+        height: '80%',
+        backgroundColor: '#0072B1', // Sua cor de identidade
         borderRadius: 10,
         marginRight: 12,
     },
@@ -179,14 +197,14 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
-        marginBottom: 4,
+        marginBottom: 6,
     },
     grupoText: {
-        color: '#007AFF', // Azul sistema profissional
+        color: '#0072B1', 
         fontSize: normalize(11),
-        fontWeight: 'bold',
+        fontWeight: '800',
         textTransform: 'uppercase',
-        letterSpacing: 0.5,
+        letterSpacing: 0.8,
     },
     dataText: {
         color: '#999',
@@ -196,7 +214,8 @@ const styles = StyleSheet.create({
     eventoText: {
         color: '#333',
         fontSize: normalize(16),
-        fontWeight: '600',
+        fontWeight: '700',
+        lineHeight: 22,
     },
     deleteBtn: {
         width: normalize(40),
@@ -204,21 +223,26 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
         alignItems: 'center',
         backgroundColor: '#FFF5F5',
-        borderRadius: 10,
+        borderRadius: 12,
         marginLeft: 10,
     },
     emptyContainer: {
-        flexGrow: 1,
         justifyContent: 'center',
+        alignItems: 'center',
     },
     emptyBox: {
         alignItems: 'center',
-        opacity: 0.6,
+        paddingBottom: 100,
     },
     emptyText: {
-        fontSize: normalize(16),
-        color: '#999',
-        marginTop: 15,
-        fontWeight: '500',
+        fontSize: normalize(18),
+        color: '#444',
+        marginTop: 20,
+        fontWeight: 'bold',
+    },
+    emptySubText: {
+        fontSize: normalize(14),
+        color: '#AAA',
+        marginTop: 5,
     },
 });

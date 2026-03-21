@@ -7,20 +7,13 @@ import { doc, getDoc, updateDoc } from "firebase/firestore";
 import { getDownloadURL, getStorage, ref, uploadBytes } from "firebase/storage";
 import { useContext, useEffect, useState } from "react";
 import {
-  ActivityIndicator // Adicionado para feedback visual
-  ,
-
-
-
-
-
-
-
-
+  ActivityIndicator,
   Alert,
   Dimensions,
   Image,
+  KeyboardAvoidingView,
   PixelRatio,
+  Platform,
   ScrollView,
   StyleSheet,
   Text,
@@ -32,218 +25,232 @@ import { MaskedTextInput } from "react-native-mask-text";
 import { db } from "../../src/Data/FirebaseConfig";
 import { AppContext } from "../../src/Data/contextApi";
 
-const { width, height } = Dimensions.get("window");
-
+const { width } = Dimensions.get("window");
 const scale = width / 375; 
-const normalize = (size) => {
-  const newSize = size * scale;
-  return Math.round(PixelRatio.roundToNearestPixel(newSize));
-};
+const normalize = (size) => Math.round(PixelRatio.roundToNearestPixel(size * scale));
 
 export default function Config() {
   const router = useRouter();
+  const { userContext } = useContext(AppContext);
 
   const [image, setImage] = useState(null);
   const [edit, setEdit] = useState(false);
-  const [nome, setNome] = useState();
-  const [tsg, setTsg] = useState();
-  const [dataNascimento, setDataNascimento] = useState();
-  const [celular, setCelular] = useState();
-  const [atribuicao, setAtribuicao] = useState();
+  const [nome, setNome] = useState("");
+  const [tsg, setTsg] = useState("");
+  const [dataNascimento, setDataNascimento] = useState("");
+  const [celular, setCelular] = useState("");
+  const [atribuicao, setAtribuicao] = useState("");
   
   const [userId, setUserId] = useState(null);
-  const [img, setImg] = useState(false);
-  const [loadingImg, setLoadingImg] = useState(false); // Novo estado para loading
-  const { userContext } = useContext(AppContext);
+  const [loadingImg, setLoadingImg] = useState(false);
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     const fetchData = async () => {
+      if (!userContext?.id) return;
       try {
-        if (!userContext?.id) return;
-
-        const querySnapshot = doc(db, 'users', userContext.id);
-        const dataSnapp = await getDoc(querySnapshot);
+        const docRef = doc(db, 'users', userContext.id);
+        const snap = await getDoc(docRef);
         
-        if (dataSnapp.exists()) {
-          const user = dataSnapp.data();
-          setUserId(dataSnapp.id);
-          setNome(user.name);
-          setDataNascimento(user.birthDate);
-          setCelular(user.phone);
-          setTsg(user.tsg);
-          setAtribuicao(user.atribuicao);
-          
-          if (user.profileImage) {
-            setImage(user.profileImage);
-            setImg(true);
-          }
+        if (snap.exists()) {
+          const user = snap.data();
+          setUserId(snap.id);
+          setNome(user.name || "");
+          setDataNascimento(user.birthDate || "");
+          setCelular(user.phone || "");
+          setTsg(user.tsg || "");
+          setAtribuicao(user.atribuicao || "");
+          setImage(user.profileImage || null);
         }
       } catch (error) {
-        console.error("Erro ao buscar dados:", error);
+        console.error("Erro ao buscar perfil:", error);
       }
-    }
+    };
     fetchData();
-  }, [userContext.id]);
+  }, [userContext?.id]);
 
   const pickImage = async () => {
     if (!userId) return;
 
     let result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ['images'],
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
       allowsEditing: true,
       aspect: [1, 1],
-      quality: 1,
+      quality: 0.7,
     });
 
     if (result.canceled) return;
 
     try {
-      setLoadingImg(true); // Inicia o carregamento visual
-
+      setLoadingImg(true);
       const manipResult = await ImageManipulator.manipulateAsync(
         result.assets[0].uri,
-        [{ resize: { width: 500, height: 500 } }],
-        { compress: 0.8, format: ImageManipulator.SaveFormat.WEBP }
+        [{ resize: { width: 400, height: 400 } }],
+        { compress: 0.7, format: ImageManipulator.SaveFormat.WEBP }
       );
 
       const response = await fetch(manipResult.uri);
       const blob = await response.blob();
-
       const storage = getStorage();
       const storageRef = ref(storage, `perfilUsers/${userId}.webp`);
 
       await uploadBytes(storageRef, blob);
       const url = await getDownloadURL(storageRef);
       
-      // PERSISTÊNCIA: Atualiza o Firestore imediatamente com a nova URL
-      await updateDoc(doc(db, 'users', userId), {
-        profileImage: url
-      });
-
+      await updateDoc(doc(db, 'users', userId), { profileImage: url });
       setImage(url);
-      setImg(true);
-      
       Alert.alert("Sucesso", "Foto de perfil atualizada!");
     } catch (error) {
-      console.error(error);
-      Alert.alert("Erro", "Falha ao processar imagem.");
+      Alert.alert("Erro", "Falha ao enviar imagem.");
     } finally {
-      setLoadingImg(false); // Para o carregamento
+      setLoadingImg(false);
     }
   };
 
-  async function editar() {
+  async function handleSave() {
     if (!edit) {
       setEdit(true);
-    } else {
-      try {
-        await updateDoc(doc(db, 'users', userId), {
-          name: nome,
-          birthDate: dataNascimento,
-          phone: celular,
-          tsg: tsg,
-          atribuicao: atribuicao,
-          profileImage: image 
-        });
-        
-        Alert.alert('Sucesso', 'Perfil atualizado!');
-        setEdit(false);
-      } catch (error) {
-        Alert.alert('Erro', 'Não foi possível salvar.');
-      }
+      return;
+    }
+
+    setSaving(true);
+    try {
+      await updateDoc(doc(db, 'users', userId), {
+        name: nome,
+        birthDate: dataNascimento,
+        phone: celular,
+        tsg: tsg,
+        atribuicao: atribuicao,
+      });
+      Alert.alert('Perfil Atualizado', 'Suas informações foram salvas com sucesso.');
+      setEdit(false);
+    } catch (error) {
+      Alert.alert('Erro', 'Não foi possível salvar as alterações.');
+    } finally {
+      setSaving(false);
     }
   }
 
   return (
-    <ScrollView style={{ flex: 1, backgroundColor: '#eee' }} contentContainerStyle={{ paddingBottom: 30 }}>
-      <View style={styles.header}>
-        <View style={styles.nameCard}>
-          <Text style={styles.nameText}>{nome || 'Usuário'}</Text>
+    <KeyboardAvoidingView 
+      style={{ flex: 1 }} 
+      behavior={Platform.OS === "ios" ? "padding" : undefined}
+    >
+      <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: 40 }}>
+        
+        <View style={styles.header}>
+          <Text style={styles.headerTitle}>Meu Perfil</Text>
+          
+          <TouchableOpacity 
+            style={styles.avatarContainer} 
+            onPress={pickImage} 
+            disabled={loadingImg}
+          >
+            {image ? (
+              <Image source={{ uri: image }} style={styles.avatar} />
+            ) : (
+              <View style={styles.avatarPlaceholder}>
+                <MaterialIcons name="add-a-photo" size={30} color="#0072B1" />
+              </View>
+            )}
+            {loadingImg && (
+              <View style={styles.loadingOverlay}>
+                <ActivityIndicator color="#FFF" />
+              </View>
+            )}
+          </TouchableOpacity>
         </View>
 
-        <TouchableOpacity 
-          style={styles.avatarWrapper} 
-          onPress={pickImage} 
-          disabled={loadingImg}
-        >
-          {loadingImg ? (
-            <View style={[styles.avatar, { justifyContent: 'center', alignItems: 'center' }]}>
-               <ActivityIndicator size="small" color="#000" />
+        <View style={styles.content}>
+          <View style={styles.actionButtons}>
+            <TouchableOpacity style={styles.cardBtn} onPress={() => router.push('/Card')}>
+              <FontAwesome name="id-card" size={16} color="#444" />
+              <Text style={styles.cardBtnText}>Ver Carteirinha</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity 
+              style={[styles.saveBtn, edit ? styles.saveBtnActive : {}]} 
+              onPress={handleSave}
+              disabled={saving}
+            >
+              {saving ? (
+                <ActivityIndicator size="small" color="#FFF" />
+              ) : (
+                <>
+                  <MaterialIcons name={edit ? "check" : "edit"} size={18} color="#FFF" />
+                  <Text style={styles.saveBtnText}>{edit ? 'Concluir' : 'Editar'}</Text>
+                </>
+              )}
+            </TouchableOpacity>
+          </View>
+
+          <View style={styles.form}>
+            <CustomInput label="Nome Completo" icon="person" value={nome} editable={edit} onChangeText={setNome} />
+            <CustomInput label="Data de Nascimento" icon="cake" value={dataNascimento} editable={edit} mask="99/99/9999" onChangeText={setDataNascimento} keyboardType="numeric" />
+            <CustomInput label="Celular" icon="phone" value={celular} editable={edit} mask="(99) 99999-9999" onChangeText={setCelular} keyboardType="numeric" />
+            
+            <View style={styles.row}>
+              <View style={{ flex: 1 }}>
+                <CustomInput label="Tipo Sanguíneo" icon="opacity" value={tsg} editable={edit} onChangeText={setTsg} />
+              </View>
+              <View style={{ width: 15 }} />
+              <View style={{ flex: 2 }}>
+                <CustomInput label="Atribuição" icon="work" value={atribuicao} editable={edit} onChangeText={setAtribuicao} />
+              </View>
             </View>
-          ) : img ? (
-            <Image source={{ uri: image }} style={styles.avatar} />
-          ) : (
-            <View style={[styles.avatar, { justifyContent: 'center', alignItems: 'center' }]}>
-               <MaterialIcons name="add-a-photo" size={normalize(30)} color="#000" />
-            </View>
-          )}
-        </TouchableOpacity>
-      </View>
-
-      <View style={styles.buttonsRow}>
-        <TouchableOpacity style={styles.btnGray} onPress={() => router.push('/Card')}>
-          <FontAwesome name="id-card" size={normalize(18)} color="#fff" />
-          <Text style={styles.btnText}>Meus Dados</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity style={styles.btnBlue} onPress={editar}>
-          <MaterialIcons name={edit ? "save" : "edit"} size={normalize(18)} color="#fff" />
-          <Text style={styles.btnText}>{edit ? 'Salvar' : 'Editar'}</Text>
-        </TouchableOpacity>
-      </View>
-
-      <View style={styles.form}>
-        <Label text="Nome" />
-        <Input icon="person" value={nome} editable={edit} onChangeText={setNome} />
-
-        <Label text="Data Nascimento" />
-        <Input icon="calendar-today" value={dataNascimento} editable={edit} mask="99/99/9999" onChangeText={setDataNascimento} />
-
-        <Label text="Celular" />
-        <Input icon="phone" value={celular} editable={edit} mask="(99) 99999-9999" onChangeText={setCelular} />
-
-        <Label text="Tipo Sanguíneo" />
-        <Input icon="opacity" value={tsg} editable={edit} onChangeText={setTsg} />
-
-        <Label text="Atribuição" />
-        <Input icon="label" value={atribuicao} editable={edit} onChangeText={setAtribuicao} />
-      </View>
-    </ScrollView>
+          </View>
+        </View>
+      </ScrollView>
+    </KeyboardAvoidingView>
   );
 }
 
-const Label = ({ text }) => <Text style={styles.label}>{text}</Text>;
-
-const Input = ({ icon, mask, ...props }) => (
-  <View style={styles.inputCard}>
-    <MaterialIcons name={icon} size={normalize(20)} color="#777" />
-    {mask ? (
-      <MaskedTextInput {...props} mask={mask} style={styles.input} />
-    ) : (
-      <TextInput {...props} style={styles.input} />
-    )}
+const CustomInput = ({ label, icon, mask, editable, ...props }) => (
+  <View style={[styles.inputGroup, !editable && styles.inputDisabled]}>
+    <Text style={styles.label}>{label}</Text>
+    <View style={styles.inputWrapper}>
+      <MaterialIcons name={icon} size={20} color={editable ? "#0072B1" : "#999"} />
+      {mask ? (
+        <MaskedTextInput {...props} mask={mask} editable={editable} style={styles.input} />
+      ) : (
+        <TextInput {...props} editable={editable} style={styles.input} />
+      )}
+    </View>
   </View>
 );
 
 const styles = StyleSheet.create({
-  header: { backgroundColor: '#0072B1', alignItems: 'center', paddingTop: 20, paddingBottom: 60, width: '100%', marginTop: 1 },
-  nameCard: { width: '98%', alignItems: "center", marginBottom: 10 },
-  nameText: { color: '#fff', fontSize: normalize(16) },
-  avatarWrapper: {
+  container: { flex: 1, backgroundColor: '#F8F9FB' },
+  header: { backgroundColor: '#0072B1', height: 160, alignItems: 'center', paddingTop: 40 },
+  headerTitle: { color: '#FFF', fontSize: normalize(18), fontWeight: 'bold' },
+  avatarContainer: {
     position: 'absolute',
-    bottom: -45,
-    backgroundColor: '#fff',
-    borderRadius: 50,
-    padding: 3,
-    elevation: 5,
+    bottom: -50,
+    width: 110,
+    height: 110,
+    borderRadius: 55,
+    backgroundColor: '#FFF',
+    padding: 5,
+    elevation: 10,
+    shadowColor: '#000',
+    shadowOpacity: 0.1,
+    shadowRadius: 10,
   },
-  avatar: { width: normalize(90), height: normalize(90), borderRadius: 45 },
-  buttonsRow: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 60, paddingHorizontal: 20 },
-  btnGray: { flexDirection: 'row', gap: 8, alignItems: 'center', backgroundColor: '#444', padding: 12, borderRadius: 10, width: '47%', justifyContent: 'center' },
-  btnBlue: { flexDirection: 'row', gap: 8, alignItems: 'center', backgroundColor: '#3b6cb7', padding: 12, borderRadius: 10, width: '47%', justifyContent: 'center' },
-  btnText: { color: '#fff', fontWeight: 'bold' },
-  form: { paddingHorizontal: 20 },
-  label: { marginTop: 15, marginBottom: 5, color: '#444', fontWeight: '600' },
-  inputCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff', borderRadius: 12, paddingHorizontal: 15, height: 45, elevation: 2 },
-  input: { flex: 1, marginLeft: 10, color: '#333' }
+  avatar: { width: '100%', height: '100%', borderRadius: 50 },
+  avatarPlaceholder: { flex: 1, borderRadius: 50, backgroundColor: '#F1F3F5', justifyContent: 'center', alignItems: 'center' },
+  loadingOverlay: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.4)', borderRadius: 55, justifyContent: 'center', alignItems: 'center' },
+  content: { marginTop: 60, paddingHorizontal: 20 },
+  actionButtons: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 25 },
+  cardBtn: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 12, paddingHorizontal: 15, borderRadius: 12, backgroundColor: '#FFF', borderWidth: 1, borderColor: '#DDD' },
+  cardBtnText: { color: '#444', fontWeight: 'bold', fontSize: normalize(13) },
+  saveBtn: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 12, paddingHorizontal: 25, borderRadius: 12, backgroundColor: '#666' },
+  saveBtnActive: { backgroundColor: '#0072B1' },
+  saveBtnText: { color: '#FFF', fontWeight: 'bold', fontSize: normalize(13) },
+  form: { gap: 15 },
+  inputGroup: { marginBottom: 5 },
+  inputDisabled: { opacity: 0.7 },
+  label: { fontSize: normalize(11), fontWeight: 'bold', color: '#888', marginBottom: 8, textTransform: 'uppercase', marginLeft: 4 },
+  inputWrapper: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFF', borderRadius: 15, paddingHorizontal: 15, height: 55, borderWidth: 1, borderColor: '#EEE' },
+  input: { flex: 1, marginLeft: 10, fontSize: normalize(14), color: '#333', fontWeight: '500' },
+  row: { flexDirection: 'row', alignItems: 'flex-end' }
 });

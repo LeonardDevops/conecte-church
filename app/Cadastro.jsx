@@ -41,12 +41,11 @@ export default function Cadastro() {
   const [nascimento, setNascimento] = useState("");
   const [selectedBranchId, setSelectedBranchId] = useState("");
 
-  // Configuração do Toast para fontes grandes
   const toastConfig = {
     success: (props) => (
       <BaseToast
         {...props}
-        style={{ borderLeftColor: '#4CAF50', height: normalize(70), width: '90%', marginTop: 10 }}
+        style={{ borderLeftColor: '#0072B1', height: normalize(70), width: '90%', marginTop: 10 }}
         text1Style={{ fontSize: normalize(16), fontWeight: 'bold' }}
         text2Style={{ fontSize: normalize(14), color: '#555' }}
       />
@@ -59,60 +58,50 @@ export default function Cadastro() {
         text2Style={{ fontSize: normalize(14), color: '#555' }}
       />
     ),
-    info: (props) => (
-      <BaseToast
-        {...props}
-        style={{ borderLeftColor: '#2196F3', height: normalize(70), width: '90%', marginTop: 10 }}
-        text1Style={{ fontSize: normalize(16), fontWeight: 'bold' }}
-        text2Style={{ fontSize: normalize(14), color: '#555' }}
-      />
-    ),
   };
 
   useEffect(() => {
+    let isMounted = true;
     const fetchBranches = async () => {
-      if (userContext?.churches && userContext.churches.length > 0) {
-        setChurches(userContext.churches);
-      } else {
-        try {
-          const q = query(collection(db, "branches"), where("status", "==", "active"));
-          const querySnapshot = await getDocs(q);
-          const branchesData = [];
-          querySnapshot.forEach((doc) => {
-            branchesData.push({
-              branchId: doc.id,
-              branchName: doc.data().name,
-              churchId: doc.data().churchId || "default",
-              churchName: "Ministério Evangelistico Tálamo",
-            });
+      try {
+        const q = query(collection(db, "branches"), where("status", "==", "active"));
+        const querySnapshot = await getDocs(q);
+        const branchesData = [];
+        querySnapshot.forEach((doc) => {
+          branchesData.push({
+            branchId: doc.id,
+            branchName: doc.data().name,
+            churchId: doc.data().churchId || "default",
+            churchName: "Ministério Conecte Church", // Nome unificado
           });
-          setChurches(branchesData);
-        } catch (error) {
-          console.error("Erro ao carregar filiais:", error);
-        }
+        });
+        if (isMounted) setChurches(branchesData);
+      } catch (error) {
+        console.error("Erro ao carregar filiais:", error);
       }
     };
+
     fetchBranches();
-  }, [userContext]);
+    return () => { isMounted = false; };
+  }, []);
 
   const validateEmail = (email) => {
-    const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    return re.test(email);
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
   };
 
   async function handleRegister() {
     const branchCompleted = churches.find((b) => b.branchId === selectedBranchId);
 
     if (!nome.trim() || !email.trim() || !password.trim() || !selectedBranchId) {
-      return Toast.show({ type: 'error', text1: 'Erro', text2: 'Preencha todos os campos!' });
+      return Toast.show({ type: 'error', text1: 'Campos Vazios', text2: 'Por favor, preencha todos os dados.' });
     }
 
     if (!validateEmail(email)) {
-      return Toast.show({ type: 'error', text1: 'Erro', text2: 'E-mail inválido.' });
+      return Toast.show({ type: 'error', text1: 'E-mail Inválido', text2: 'Digite um formato de e-mail correto.' });
     }
 
     if (password.length < 6) {
-      return Toast.show({ type: 'error', text1: 'Erro', text2: 'A senha deve ter pelo menos 6 dígitos.' });
+      return Toast.show({ type: 'error', text1: 'Senha Curta', text2: 'A senha precisa de no mínimo 6 caracteres.' });
     }
 
     setLoading(true);
@@ -132,7 +121,7 @@ export default function Cadastro() {
         name: nome.trim(),
         email: email.trim().toLowerCase(),
         birthDate: nascimento || null,
-        status: "pending",
+        status: "pending", // Aguardando aprovação
         createdAt: serverTimestamp(),
         uid: userCredential.user.uid,
         atribuicao: "Membro",
@@ -141,16 +130,17 @@ export default function Cadastro() {
 
       Toast.show({
         type: 'success',
-        text1: 'Sucesso!',
-        text2: 'Cadastro enviado para aprovação do pastor.',
-        onHide: () => route.push("/")
+        text1: 'Cadastro Realizado!',
+        text2: 'Aguarde a aprovação do seu acesso.',
+        onHide: () => route.replace("/") // replace para não voltar ao form
       });
 
     } catch (error) {
-      console.error("Erro no cadastro:", error);
-      let mensagem = "Não foi possível realizar o cadastro.";
-      if (error.code === "auth/email-already-in-use") mensagem = "Este e-mail já está em uso.";
-      Toast.show({ type: 'error', text1: 'Erro no Cadastro', text2: mensagem });
+      let mensagem = "Erro ao conectar com o servidor.";
+      if (error.code === "auth/email-already-in-use") mensagem = "Este e-mail já está cadastrado.";
+      if (error.code === "auth/invalid-email") mensagem = "O formato do e-mail é inválido.";
+      
+      Toast.show({ type: 'error', text1: 'Falha no Cadastro', text2: mensagem });
     } finally {
       setLoading(false);
     }
@@ -165,36 +155,37 @@ export default function Cadastro() {
         <ScrollView 
           contentContainerStyle={styles.scrollContainer} 
           showsVerticalScrollIndicator={false}
-          bounces={false}
         >
-          <Text style={styles.title}>Criar nova conta</Text>
-          <Text style={styles.subtitle}>Preencha seus dados para solicitar o acesso</Text>
+          <View style={styles.headerArea}>
+            <Text style={styles.title}>Criar nova conta</Text>
+            <Text style={styles.subtitle}>Preencha seus dados para solicitar o acesso</Text>
+          </View>
 
           <View style={styles.form}>
             <Text style={styles.label}>Nome Completo</Text>
             <TextInput
               value={nome}
               onChangeText={setNome}
-              placeholder="Seu nome"
+              placeholder="Seu nome completo"
               placeholderTextColor="#bbb"
               style={styles.textInput}
               editable={!loading}
             />
 
-            <Text style={styles.label}>E-mail</Text>
+            <Text style={styles.label}>E-mail de acesso</Text>
             <TextInput
               value={email}
               onChangeText={setEmail}
               keyboardType="email-address"
               autoCapitalize="none"
-              placeholder="email@exemplo.com"
+              placeholder="exemplo@email.com"
               placeholderTextColor="#bbb"
               style={styles.textInput}
               editable={!loading}
             />
 
             <View style={styles.row}>
-              <View style={{ flex: 1, marginRight: 10 }}>
+              <View style={{ flex: 1.2, marginRight: 10 }}>
                 <Text style={styles.label}>Nascimento</Text>
                 <MaskedTextInput
                   value={nascimento}
@@ -233,16 +224,16 @@ export default function Cadastro() {
               </View>
             </View>
 
-            <Text style={styles.label}>Selecione sua Igreja (Filial)</Text>
+            <Text style={styles.label}>Sua Igreja Local</Text>
             <View style={styles.pickerWrapper}>
               <Picker
                 selectedValue={selectedBranchId}
                 onValueChange={(itemValue) => setSelectedBranchId(itemValue)}
                 enabled={!loading}
                 style={styles.picker}
-                dropdownIconColor="#000"
+                dropdownIconColor="#0072B1"
               >
-                <Picker.Item label="Toque para selecionar..." value="" color="#999" />
+                <Picker.Item label="Selecione uma filial..." value="" color="#999" />
                 {churches.map((item) => (
                   <Picker.Item
                     key={item.branchId}
@@ -272,62 +263,52 @@ export default function Cadastro() {
               disabled={loading}
               style={styles.backButton}
             >
-              <Text style={styles.backButtonText}>Já tenho uma conta. <Text style={{fontWeight: '700'}}>Entrar</Text></Text>
+              <Text style={styles.backButtonText}>Já possui acesso? <Text style={styles.linkText}>Entrar</Text></Text>
             </TouchableOpacity>
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
-
       <Toast config={toastConfig} />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  containerBody: {
-    flex: 1,
-    backgroundColor: "#fff",
-  },
+  containerBody: { flex: 1, backgroundColor: "#fff" },
   scrollContainer: {
     flexGrow: 1,
     paddingHorizontal: width * 0.07,
     paddingTop: height * 0.08,
     paddingBottom: 40,
   },
+  headerArea: { marginBottom: height * 0.03 },
   title: {
-    fontSize: normalize(26),
-    fontWeight: "800",
-    color: "#000",
+    fontSize: normalize(28),
+    fontWeight: "900",
+    color: "#1A1A1A",
     letterSpacing: -0.5,
   },
   subtitle: {
     fontSize: normalize(14),
-    color: "#777",
-    marginTop: 5,
-    marginBottom: height * 0.04,
+    color: "#888",
+    marginTop: 4,
   },
-  form: {
-    width: "100%",
-  },
-  row: {
-    flexDirection: 'row',
-    justifyContent: 'space-between'
-  },
+  form: { width: "100%" },
+  row: { flexDirection: 'row', justifyContent: 'space-between' },
   label: {
-    fontSize: normalize(13),
-    fontWeight: "700",
+    fontSize: normalize(11),
+    fontWeight: "800",
     color: "#444",
     marginBottom: 8,
-    marginLeft: 2,
     textTransform: 'uppercase',
-    letterSpacing: 0.5
+    letterSpacing: 1
   },
   textInput: {
     height: normalize(55),
-    backgroundColor: "#f9f9f9",
+    backgroundColor: "#F8F9FA",
     borderWidth: 1,
-    borderColor: "#efefef",
-    borderRadius: 14,
+    borderColor: "#E9ECEF",
+    borderRadius: 16,
     paddingHorizontal: 16,
     fontSize: normalize(15),
     color: "#000",
@@ -337,67 +318,40 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     height: normalize(55),
-    backgroundColor: "#f9f9f9",
+    backgroundColor: "#F8F9FA",
     borderWidth: 1,
-    borderColor: "#efefef",
-    borderRadius: 14,
+    borderColor: "#E9ECEF",
+    borderRadius: 16,
     marginBottom: height * 0.02,
   },
-  inputPass: {
-    flex: 1,
-    height: '100%',
-    paddingHorizontal: 16,
-    fontSize: normalize(15),
-    color: "#000",
-  },
-  eyeIcon: {
-    paddingHorizontal: 12,
-    height: '100%',
-    justifyContent: 'center',
-  },
+  inputPass: { flex: 1, height: '100%', paddingHorizontal: 16, fontSize: normalize(15), color: "#000" },
+  eyeIcon: { paddingHorizontal: 12, height: '100%', justifyContent: 'center' },
   pickerWrapper: {
-    backgroundColor: "#f9f9f9",
-    borderRadius: 14,
+    backgroundColor: "#F8F9FA",
+    borderRadius: 16,
     borderWidth: 1,
-    borderColor: "#efefef",
-    marginBottom: height * 0.03,
+    borderColor: "#E9ECEF",
+    marginBottom: height * 0.04,
     height: normalize(55),
     justifyContent: "center",
     overflow: "hidden",
   },
-  picker: {
-    width: "100%",
-    color: "#000",
-  },
+  picker: { width: "100%", color: "#000" },
   button: {
     height: normalize(58),
     backgroundColor: "#0072B1",
     justifyContent: "center",
     alignItems: "center",
-    borderRadius: 16,
-    marginTop: 10,
-    shadowColor: "#000",
+    borderRadius: 18,
+    elevation: 4,
+    shadowColor: "#0072B1",
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
+    shadowOpacity: 0.3,
     shadowRadius: 8,
-    elevation: 5,
   },
-  buttonDisabled: {
-    backgroundColor: "#444",
-    opacity: 0.6
-  },
-  buttonText: {
-    color: "#fff",
-    fontSize: normalize(16),
-    fontWeight: "700",
-  },
-  backButton: {
-    marginTop: 25,
-    alignSelf: "center",
-    padding: 10
-  },
-  backButtonText: {
-    color: "#666",
-    fontSize: normalize(14),
-  },
+  buttonDisabled: { backgroundColor: "#B0C4DE", elevation: 0 },
+  buttonText: { color: "#fff", fontSize: normalize(16), fontWeight: "bold" },
+  backButton: { marginTop: 30, alignSelf: "center" },
+  backButtonText: { color: "#888", fontSize: normalize(14) },
+  linkText: { color: "#0072B1", fontWeight: "bold" }
 });

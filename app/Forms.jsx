@@ -1,6 +1,5 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useRouter } from "expo-router";
-
 import { useState } from 'react';
 import {
   ActivityIndicator,
@@ -17,13 +16,12 @@ import {
   View
 } from 'react-native';
 
-// Importações do Firebase - Verifique se seu caminho src/Data/firebaseConfig está correto
-import { getAuth, onAuthStateChanged } from "firebase/auth";
+// Importações do Firebase
+import { getAuth } from "firebase/auth";
 import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
 import { db } from '../src/Data/FirebaseConfig';
-const { width } = Dimensions.get('window');
 
-// Mantendo seu padrão de normalização para ser responsivo em qualquer aparelho
+const { width } = Dimensions.get('window');
 const scale = width / 375;
 const normalize = (size) => Math.round(PixelRatio.roundToNearestPixel(size * scale));
 
@@ -32,7 +30,7 @@ const CustomInput = ({ label, icon, value, onChangeText, placeholder, keyboardTy
     <View style={styles.inputContainer}>
       <Text style={styles.label}>{label}</Text>
       <View style={[styles.inputWrapper, multiline && styles.inputMultiline]}>
-        <MaterialCommunityIcons name={icon} size={normalize(20)} color="#999" style={styles.icon} />
+        <MaterialCommunityIcons name={icon} size={normalize(20)} color="#0072B1" style={styles.icon} />
         <TextInput
           style={[styles.input, multiline && { textAlignVertical: 'top', paddingTop: 10 }]}
           placeholder={placeholder}
@@ -51,7 +49,6 @@ export default function Forms() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
 
-  // Estado único para o formulário
   const [form, setForm] = useState({
     nome: '',
     igreja: '',
@@ -63,32 +60,28 @@ export default function Forms() {
     emergencia: ''
   });
 
-
-  
   const handleSave = async () => {
-    
-    
-    // Validação básica
+    // 1. Validação básica
     if (!form.nome || !form.telefone || !form.evento) {
       Alert.alert("Campos Obrigatórios", "Por favor, preencha pelo menos Nome, Telefone e Evento.");
       return;
     }
-    
+
     setLoading(true);
-    const auth = getAuth();
-     await onAuthStateChanged(auth, (user)=> {
-
-      const uid = user.uid
-      console.log(uid);
     
-      if (!user) {
-        return;
+    try {
+      const auth = getAuth();
+      const user = auth.currentUser; // Forma correta de pegar o usuário atual no clique
 
-      } 
-        
-        try {
-      // Gravação na coleção 'forms' do Firestore
-        addDoc (collection(db, "forms"), {
+      if (!user) {
+        setLoading(false);
+        Alert.alert("Erro de Autenticação", "Você precisa estar logado para se inscrever.");
+        return;
+      }
+
+      // 2. Gravação no Firestore
+      await addDoc(collection(db, "forms"), {
+        userId: user.uid, // Importante para vincular a inscrição ao usuário
         nome_completo: form.nome,
         igreja: form.igreja,
         telefone: form.telefone,
@@ -99,20 +92,18 @@ export default function Forms() {
         contato_emergencia: form.emergencia,
         data_inscricao: serverTimestamp(),
       });
-      
+
       Alert.alert("Sucesso", "Sua inscrição foi enviada com sucesso!", [
         { text: "OK", onPress: () => router.back() }
       ]);
-      
-    }  catch (error) {
+
+    } catch (error) {
       console.error("Erro Firebase:", error);
       Alert.alert("Erro", "Não foi possível salvar os dados. Verifique sua conexão.");
     } finally {
       setLoading(false);
     }
-  })
-  
-};
+  };
 
   return (
     <KeyboardAvoidingView 
@@ -212,41 +203,18 @@ export default function Forms() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#FFFFFF',
-  },
+  container: { flex: 1, backgroundColor: '#FFFFFF' },
   scrollContainer: {
     paddingHorizontal: normalize(20),
     paddingTop: normalize(20),
     paddingBottom: normalize(40),
   },
-  header: {
-    marginBottom: normalize(20),
-  },
-  title: {
-    fontSize: normalize(26),
-    fontWeight: 'bold',
-    color: '#1A1A1A',
-  },
-  subtitle: {
-    fontSize: normalize(14),
-    color: '#666',
-    marginTop: 4,
-  },
-  formCard: {
-    backgroundColor: '#FFF',
-    borderRadius: 20,
-  },
-  inputContainer: {
-    marginBottom: normalize(15),
-  },
-  label: {
-    fontSize: normalize(13),
-    fontWeight: '700',
-    color: '#444',
-    marginBottom: 8,
-  },
+  header: { marginBottom: normalize(20) },
+  title: { fontSize: normalize(26), fontWeight: 'bold', color: '#0072B1' },
+  subtitle: { fontSize: normalize(14), color: '#666', marginTop: 4 },
+  formCard: { backgroundColor: '#FFF', borderRadius: 20 },
+  inputContainer: { marginBottom: normalize(15) },
+  label: { fontSize: normalize(13), fontWeight: '700', color: '#444', marginBottom: 8 },
   inputWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -254,35 +222,24 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     paddingHorizontal: 15,
     height: normalize(52),
+    borderWidth: 1,
+    borderColor: '#EEE'
   },
-  icon: {
-    marginRight: 10,
-  },
-  input: {
-    flex: 1,
-    color: '#1A1A1A',
-    fontSize: normalize(15),
-  },
-  row: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
+  icon: { marginRight: 10 },
+  input: { flex: 1, color: '#1A1A1A', fontSize: normalize(15) },
+  row: { flexDirection: 'row', justifyContent: 'space-between' },
   button: {
-    backgroundColor: '#000000',
+    backgroundColor: '#0072B1',
     height: normalize(55),
     borderRadius: 15,
     justifyContent: 'center',
     alignItems: 'center',
     marginTop: normalize(10),
+    elevation: 3,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 5,
-    elevation: 5,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
   },
-  buttonText: {
-    color: '#FFF',
-    fontSize: normalize(16),
-    fontWeight: 'bold',
-  },
+  buttonText: { color: '#FFF', fontSize: normalize(16), fontWeight: 'bold' },
 });

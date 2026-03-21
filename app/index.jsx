@@ -34,14 +34,15 @@ export default function Login() {
   const [branchesData, setBranchesData] = useState([{ Branchname: "Selecione Igreja" }]);
   const [pixConfigData, setPixConfigData] = useState(null);
   const [pr, setPr] = useState(null);
+  const [loading, setLoading] = useState(false);
   const router = useRouter();
 
-  // Configuração customizada para o Toast ficar grande e por cima de tudo
+  // Configuração do Toast com sua identidade visual (#0072B1)
   const toastConfig = {
     success: (props) => (
       <BaseToast
         {...props}
-        style={{ borderLeftColor: '#4CAF50', height: normalize(70), width: '90%', marginTop: 10 }}
+        style={{ borderLeftColor: '#0072B1', height: normalize(70), width: '90%', marginTop: 10 }}
         contentContainerStyle={{ paddingHorizontal: 15 }}
         text1Style={{ fontSize: normalize(16), fontWeight: 'bold' }}
         text2Style={{ fontSize: normalize(14), color: '#555' }}
@@ -106,40 +107,50 @@ export default function Login() {
         text2: 'Preencha todos os campos e selecione a igreja.'
       });
     }
+
+    setLoading(true);
+
     try {
       const snapshot = await signInWithEmailAndPassword(auth, emailInput.toLowerCase(), passwordInput);
       await setItem("uid", snapshot.user.uid);
+
       const queryUsers = query(
         collection(db, "users"), 
         where("status", "==", "active"),
         where("email", "==", emailInput.toLowerCase()),
         where("branchName", "==", selectedValue)
       );
+
       const dataUser = await getDocs(queryUsers);
+
       if (dataUser.empty) {
+        setLoading(false);
         return Toast.show({
           type: 'error',
           text1: 'Acesso Negado',
           text2: 'Usuário não encontrado nesta filial!'
         });
       }
-      dataUser.forEach((item) => {
-        setUserContext({
-          id: item.id,
-          email: item.data().email,
-          name: item.data().name,
-          tsg: item.data().tsg || null,
-          phone: item.data().phone,
-          birthDate: item.data().birthDate,
-          atribuicao: item.data().atribuicao || null,
-          branchName: item.data().branchName,
-          churchId:item.data().churchId,
-          isLogged: true,
-          branchId: item.data().branchId,
-          pixConfig: pixConfigData,
-          pr: pr,
-          uid:item.id
-        });
+
+      // Pega o primeiro usuário encontrado (Evita loop de renderização)
+      const userDoc = dataUser.docs[0];
+      const userData = userDoc.data();
+
+      setUserContext({
+        id: userDoc.id,
+        email: userData.email,
+        name: userData.name,
+        tsg: userData.tsg || null,
+        phone: userData.phone,
+        birthDate: userData.birthDate,
+        atribuicao: userData.atribuicao || null,
+        branchName: userData.branchName,
+        churchId: userData.churchId,
+        isLogged: true,
+        branchId: userData.branchId,
+        pixConfig: pixConfigData,
+        pr: pr,
+        uid: userDoc.id
       });
 
       Toast.show({
@@ -148,8 +159,14 @@ export default function Login() {
         text2: 'Login efetuado com sucesso.'
       });
 
-      router.push("/IntroAfterLogin");
+      // Aguarda o Toast e o Contexto estabilizarem antes de navegar
+      setTimeout(() => {
+        router.replace("/IntroAfterLogin");
+      }, 600);
+
     } catch (error) {
+      setLoading(false);
+      console.error("Erro Firebase:", error);
       Toast.show({
         type: 'error',
         text1: 'Erro no Login',
@@ -210,8 +227,13 @@ export default function Login() {
             </View>
           </View>
 
-          <TouchableOpacity style={style.btnAcessar} onPress={handleLogin} activeOpacity={0.8}>
-            <Text style={style.textLogin}>Acessar</Text>
+          <TouchableOpacity 
+            style={[style.btnAcessar, loading && { opacity: 0.7 }]} 
+            onPress={handleLogin} 
+            disabled={loading}
+            activeOpacity={0.8}
+          >
+            <Text style={style.textLogin}>{loading ? "Carregando..." : "Acessar"}</Text>
           </TouchableOpacity>
 
           <View style={style.pickerWrapper}>
@@ -244,8 +266,6 @@ export default function Login() {
           </View>
         </View>
       </ScrollView>
-
-      {/* O TOAST DEVE FICAR AQUI, FORA DO SCROLLVIEW PARA NÃO SER SOBREPOSTO */}
       <Toast config={toastConfig} />
     </View>
   );
@@ -254,7 +274,6 @@ export default function Login() {
 const style = StyleSheet.create({
   scrollContainer: { flexGrow: 1 },
   body: { flex: 1, alignItems: "center", paddingHorizontal: width * 0.08, paddingTop: height * 0.08 },
-  
   qrBtn: {
     position: 'absolute',
     right: normalize(20),
@@ -274,49 +293,21 @@ const style = StyleSheet.create({
     borderColor: '#eee',
     zIndex: 10
   },
-
   logo: { width: normalize(140), height: normalize(140), borderRadius: 300, marginBottom: 15 },
   text: { fontSize: normalize(14), fontWeight: "700", color: "#222", marginBottom: 30, textAlign: "center" },
-  
   inputContainer: { width: '100%' },
-  
   input: { 
-    width: "100%", 
-    height: normalize(55), 
-    backgroundColor: "#fff", 
-    borderRadius: 12, 
-    paddingHorizontal: 15, 
-    fontSize: normalize(16), 
-    color: "#333", 
-    marginBottom: 15, 
-    borderWidth: 1, 
-    borderColor: '#eee' 
+    width: "100%", height: normalize(55), backgroundColor: "#fff", 
+    borderRadius: 12, paddingHorizontal: 15, fontSize: normalize(16), 
+    color: "#333", marginBottom: 15, borderWidth: 1, borderColor: '#eee' 
   },
-
   passwordWrapper: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    width: '100%',
-    height: normalize(55),
-    backgroundColor: "#fff",
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#eee',
-    marginBottom: 15,
+    flexDirection: 'row', alignItems: 'center', width: '100%',
+    height: normalize(55), backgroundColor: "#fff", borderRadius: 12,
+    borderWidth: 1, borderColor: '#eee', marginBottom: 15,
   },
-  inputPass: {
-    flex: 1, 
-    height: '100%',
-    paddingHorizontal: 15,
-    fontSize: normalize(16),
-    color: "#333",
-  },
-  eyeIcon: {
-    paddingHorizontal: 15,
-    height: '100%',
-    justifyContent: 'center',
-  },
-
+  inputPass: { flex: 1, height: '100%', paddingHorizontal: 15, fontSize: normalize(16), color: "#333" },
+  eyeIcon: { paddingHorizontal: 15, height: '100%', justifyContent: 'center' },
   btnAcessar: { backgroundColor: "#0072B1", width: "100%", height: normalize(55), borderRadius: 12, justifyContent: "center", alignItems: "center", marginBottom: 20, elevation: 2 },
   textLogin: { color: "#fff", fontSize: normalize(18), fontWeight: "bold" },
   pickerWrapper: { width: "100%", height: normalize(55), backgroundColor: "#fff", borderRadius: 12, justifyContent: "center", marginBottom: 25, borderWidth: 1, borderColor: '#eee' },

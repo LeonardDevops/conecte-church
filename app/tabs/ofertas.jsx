@@ -1,8 +1,8 @@
 import * as Clipboard from 'expo-clipboard';
-import { getAuth, onAuthStateChanged } from "firebase/auth";
 import { addDoc, collection, serverTimestamp } from "firebase/firestore";
 import { useContext, useState } from "react";
 import {
+  ActivityIndicator,
   Alert,
   Dimensions,
   KeyboardAvoidingView,
@@ -19,15 +19,14 @@ import QRCode from "react-native-qrcode-svg";
 import { AppContext } from "../../src/Data/contextApi";
 import { db } from "../../src/Data/FirebaseConfig";
 
-const { width, height } = Dimensions.get("window");
+const { width } = Dimensions.get("window");
 const scale = width / 375;
 const normalize = (size) => Math.round(PixelRatio.roundToNearestPixel(size * scale));
 
-export default function Ofertas({ navigation }) {
-  const [tipo, setTipo] = useState("Dízimo"); // Estado padronizado
+export default function Ofertas() {
+  const [tipo, setTipo] = useState("Dízimo");
   const [valor, setValor] = useState("");
   const [descricao, setDescricao] = useState("");
-  const [qrCodeUrl, setQrCodeUrl] = useState("");
   const [pixPayload, setPixPayload] = useState("");
   const [loading, setLoading] = useState(false);
   const [qrGenerated, setQrGenerated] = useState(false);
@@ -38,7 +37,7 @@ export default function Ofertas({ navigation }) {
     if (!chavePix || !valor) return "";
     
     const valorFormatado = parseFloat(valor).toFixed(2);
-    const nomeRecebedor = (userContext?.pixConfig?.nome || "IGREJA").substring(0, 25).toUpperCase();
+    const nomeRecebedor = (userContext?.pixConfig?.nome || "CONECTE CHURCH").substring(0, 25).toUpperCase();
     const cidade = (userContext?.pixConfig?.cidade || "BRASIL").substring(0, 15).toUpperCase();
     
     const mountBlock = (id, value) => id + value.length.toString().padStart(2, '0') + value;
@@ -49,7 +48,7 @@ export default function Ofertas({ navigation }) {
     payload += "52040000"; 
     payload += "5303986";  
     payload += mountBlock("54", valorFormatado); 
-    payload += "5802BR";   
+    payload += "5802BR";    
     payload += mountBlock("59", nomeRecebedor);
     payload += mountBlock("60", cidade);
     payload += "62070503***"; 
@@ -71,30 +70,25 @@ export default function Ofertas({ navigation }) {
   };
 
   const gerarQRCode = async () => {
-    if (!valor || isNaN(parseFloat(valor.replace(',', '.'))) || parseFloat(valor.replace(',', '.')) <= 0) {
-      Alert.alert("Atenção", "Por favor, informe um valor válido.");
+    const valLimpo = valor.replace(',', '.');
+    if (!valor || isNaN(parseFloat(valLimpo)) || parseFloat(valLimpo) <= 0) {
+      Alert.alert("Valor Inválido", "Informe quanto deseja contribuir.");
       return;
     }
 
     const chavePix = userContext?.pixConfig?.pixKey;
     if (!chavePix) {
-      Alert.alert("Erro", "Chave PIX não configurada pelo administrador.");
+      Alert.alert("Configuração Pendente", "A chave PIX da igreja ainda não foi configurada.");
       return;
     }
 
     setLoading(true);
-    try {
-      const valorNumerico = parseFloat(valor.replace(',', '.')).toFixed(2);
-      const payload = generatePixPayload(chavePix, valorNumerico, descricao);
-      
+    setTimeout(() => {
+      const payload = generatePixPayload(chavePix, valLimpo, descricao);
       setPixPayload(payload);
-      setQrCodeUrl(payload); 
       setQrGenerated(true);
-    } catch (error) {
-      Alert.alert("Erro", "Falha ao gerar QR Code.");
-    } finally {
       setLoading(false);
-    }
+    }, 800);
   };
 
   const copiarCodigo = async () => {
@@ -106,29 +100,20 @@ export default function Ofertas({ navigation }) {
       const financeData = {
         type: tipo.toLowerCase(),
         amount: parseFloat(valor.replace(',', '.')),
-        descripition: descricao || tipo,
-        pixKey: userContext?.pixConfig?.pixKey,
-        qrCodeUrl: "pix_generated",
-        churchId: userContext?.churchId,
-        userName: userContext?.name || "Anônimo",
-        branchName: userContext?.branchName || "Matriz",
+        description: descricao || tipo,
+        churchId: userContext?.churchId || "Geral",
+        userName: userContext?.name || "Membro Conecte",
         date: new Date().toISOString().split('T')[0],
         createdAt: serverTimestamp(),
         status: "pendente",
-        category: "Geral",
-        updateAt: serverTimestamp(),
         paymentMethod: "pix",
-        branchId: userContext?.branchId
+        branchId: userContext?.branchId || "Matriz"
       };
 
-      const auth = getAuth();
-      await onAuthStateChanged(auth, (user) => {
-        if (!user) return;
-        addDoc(collection(db, "finances"), financeData);
-        Alert.alert("✅ Copiado!", "Código PIX copiado. Agora cole no app do seu banco para pagar.");
-      });
+      await addDoc(collection(db, "finances"), financeData);
+      Alert.alert("✅ Sucesso!", "Código copiado! Abra o app do seu banco e escolha 'PIX Copia e Cola'.");
     } catch (error) {
-      Alert.alert("Erro", "Não foi possível registrar a contribuição.");
+      Alert.alert("Erro", "Falha ao registrar contribuição localmente.");
     }
   };
 
@@ -148,14 +133,14 @@ export default function Ofertas({ navigation }) {
         
         <View style={styles.header}>
           <Text style={styles.title}>Dízimos e Ofertas</Text>
-          <Text style={styles.subtitle}>Sua fidelidade faz a obra crescer</Text>
+          <Text style={styles.subtitle}>Contribua com alegria para a obra</Text>
         </View>
 
         <View style={styles.card}>
           <View style={styles.tabContainer}>
             <TouchableOpacity 
               style={[styles.tab, tipo === "Dízimo" && styles.tabActive]} 
-              onPress={() => setTipo("Dízimo")} // Corrigido para "Dízimo"
+              onPress={() => setTipo("Dízimo")}
             >
               <Text style={[styles.tabText, tipo === "Dízimo" && styles.tabTextActive]}>Dízimo</Text>
             </TouchableOpacity>
@@ -167,25 +152,25 @@ export default function Ofertas({ navigation }) {
             </TouchableOpacity>
           </View>
 
-          <Text style={styles.label}>Valor da Contribuição</Text>
+          <Text style={styles.label}>Valor</Text>
           <View style={styles.inputRow}>
             <Text style={styles.currencyPrefix}>R$</Text>
             <TextInput
               style={styles.valorInput}
               placeholder="0,00"
-              placeholderTextColor={"#686666"}
-              keyboardType="numeric"
+              placeholderTextColor="#ADB5BD"
+              keyboardType="decimal-pad"
               value={valor}
               onChangeText={setValor}
               editable={!qrGenerated}
             />
           </View>
 
-          <Text style={styles.label}>Motivo / Descrição (Opcional)</Text>
+          <Text style={styles.label}>Descrição (Opcional)</Text>
           <TextInput
             style={styles.descricaoInput}
-            placeholder="Ex: Gratidão pela família"
-            placeholderTextColor={"#686666"}
+            placeholder="Ex: Oferta de gratidão"
+            placeholderTextColor="#ADB5BD"
             value={descricao}
             onChangeText={setDescricao}
             editable={!qrGenerated}
@@ -197,7 +182,7 @@ export default function Ofertas({ navigation }) {
               onPress={gerarQRCode}
               disabled={loading}
             >
-              <Text style={styles.btnText}>{loading ? "PROCESSANDO..." : "GERAR PIX"}</Text>
+              {loading ? <ActivityIndicator color="#FFF" /> : <Text style={styles.btnText}>GERAR QR CODE PIX</Text>}
             </TouchableOpacity>
           ) : (
             <View style={styles.qrArea}>
@@ -205,8 +190,8 @@ export default function Ofertas({ navigation }) {
                 <QRCode
                   value={pixPayload}
                   size={normalize(180)}
-                  logo={require('../img/logo.empresa.jpeg')} // Atualizado para sua logo
-                  logoSize={normalize(40)}
+                  color="#000"
+                  backgroundColor="#FFF"
                 />
               </View>
               
@@ -215,14 +200,14 @@ export default function Ofertas({ navigation }) {
               </TouchableOpacity>
 
               <TouchableOpacity style={styles.btnLimpar} onPress={limparCampos}>
-                <Text style={styles.btnLimparText}>Fazer outra contribuição</Text>
+                <Text style={styles.btnLimparText}>Nova contribuição</Text>
               </TouchableOpacity>
             </View>
           )}
         </View>
 
         <View style={styles.footerVerse}>
-          <Text style={styles.verseText}>"Deus ama quem dá com alegria."</Text>
+          <Text style={styles.verseText}>"Cada um dê conforme determinou em seu coração, não com pesar ou por obrigação."</Text>
           <Text style={styles.verseRef}>2 Coríntios 9:7</Text>
         </View>
 
@@ -232,72 +217,66 @@ export default function Ofertas({ navigation }) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F5F7FA' },
+  container: { flex: 1, backgroundColor: '#F8F9FB' },
   scrollContent: { paddingBottom: 40 },
   header: { 
-    backgroundColor: '#0072B1', // Azul Conecte
-    paddingTop: normalize(50), 
-    paddingBottom: normalize(30), 
+    backgroundColor: '#0072B1', 
+    paddingTop: normalize(60), 
+    paddingBottom: normalize(50), 
     alignItems: 'center',
-    borderBottomLeftRadius: 30,
-    borderBottomRightRadius: 30,
+    borderBottomLeftRadius: 35,
+    borderBottomRightRadius: 35,
   },
-  title: { color: '#FFF', fontSize: normalize(22), fontWeight: 'bold' },
-  subtitle: { color: '#b0d4e8', fontSize: normalize(13), marginTop: 5 },
+  title: { color: '#FFF', fontSize: normalize(22), fontWeight: '900' },
+  subtitle: { color: '#E0F2F1', fontSize: normalize(13), marginTop: 5, opacity: 0.8 },
   card: {
     backgroundColor: '#FFF',
     marginHorizontal: normalize(20),
-    marginTop: normalize(-20),
-    borderRadius: 20,
+    marginTop: normalize(-30),
+    borderRadius: 24,
     padding: normalize(20),
-    elevation: 10,
+    elevation: 8,
     shadowColor: '#000',
-    shadowOpacity: 0.1,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: 5 }
+    shadowOpacity: 0.08,
+    shadowRadius: 15,
   },
-  tabContainer: { 
-    flexDirection: 'row', 
-    backgroundColor: '#F1F3F5', 
-    borderRadius: 12, 
-    padding: 4, 
-    marginBottom: 20 
-  },
-  tab: { flex: 1, paddingVertical: 10, alignItems: 'center', borderRadius: 10 },
-  tabActive: { backgroundColor: '#0072B1' }, // Azul Conecte
-  tabText: { color: '#666', fontWeight: 'bold' },
+  tabContainer: { flexDirection: 'row', backgroundColor: '#F1F3F5', borderRadius: 14, padding: 5, marginBottom: 25 },
+  tab: { flex: 1, paddingVertical: 12, alignItems: 'center', borderRadius: 10 },
+  tabActive: { backgroundColor: '#0072B1' },
+  tabText: { color: '#6C757D', fontWeight: '800', fontSize: normalize(13) },
   tabTextActive: { color: '#FFF' },
-  label: { fontSize: normalize(12), color: '#888', fontWeight: '700', marginBottom: 8, textTransform: 'uppercase' },
+  label: { fontSize: normalize(11), color: '#495057', fontWeight: '800', marginBottom: 10, textTransform: 'uppercase', letterSpacing: 1 },
   inputRow: { 
     flexDirection: 'row', 
     alignItems: 'center', 
     backgroundColor: '#F8F9FA', 
-    borderRadius: 12, 
+    borderRadius: 14, 
     borderWidth: 1, 
     borderColor: '#E9ECEF', 
     paddingHorizontal: 15,
     marginBottom: 20
   },
-  currencyPrefix: { fontSize: normalize(18), fontWeight: 'bold', color: '#0072B1', marginRight: 10 },
-  valorInput: { flex: 1, height: 55, fontSize: normalize(18), fontWeight: 'bold', color: '#000' },
+  currencyPrefix: { fontSize: normalize(18), fontWeight: '900', color: '#0072B1', marginRight: 5 },
+  valorInput: { flex: 1, height: 60, fontSize: normalize(20), fontWeight: '700', color: '#1A1A1A' },
   descricaoInput: { 
     backgroundColor: '#F8F9FA', 
-    borderRadius: 12, 
+    borderRadius: 14, 
     borderWidth: 1, 
     borderColor: '#E9ECEF', 
-    padding: 15, 
-    height: 55, 
+    paddingHorizontal: 15, 
+    height: 60, 
     marginBottom: 25,
-    color: '#000'
+    fontSize: normalize(15),
+    color: '#1A1A1A'
   },
-  btnGerar: { backgroundColor: '#0072B1', height: 60, borderRadius: 12, justifyContent: 'center', alignItems: 'center' },
-  btnText: { color: '#FFF', fontWeight: 'bold', fontSize: normalize(14) },
+  btnGerar: { backgroundColor: '#0072B1', height: 62, borderRadius: 16, justifyContent: 'center', alignItems: 'center', elevation: 2 },
+  btnText: { color: '#FFF', fontWeight: '900', fontSize: normalize(14), letterSpacing: 1 },
   qrArea: { alignItems: 'center', marginTop: 10 },
-  qrBox: { padding: 15, backgroundColor: '#FFF', borderRadius: 15, borderWidth: 1, borderColor: '#EEE', marginBottom: 20 },
-  btnCopiar: { backgroundColor: '#67B946', height: 60, width: '100%', borderRadius: 12, justifyContent: 'center', alignItems: 'center' }, // Verde Conecte
-  btnLimpar: { marginTop: 15 },
-  btnLimparText: { color: '#666', fontWeight: '600', textDecorationLine: 'underline' },
-  footerVerse: { marginTop: 30, alignItems: 'center', paddingHorizontal: 40 },
-  verseText: { fontStyle: 'italic', textAlign: 'center', color: '#888', fontSize: normalize(14) },
-  verseRef: { fontWeight: 'bold', color: '#0072B1', marginTop: 5 }
+  qrBox: { padding: 20, backgroundColor: '#FFF', borderRadius: 20, borderWidth: 1, borderColor: '#F1F3F5', marginBottom: 20 },
+  btnCopiar: { backgroundColor: '#28A745', height: 62, width: '100%', borderRadius: 16, justifyContent: 'center', alignItems: 'center' },
+  btnLimpar: { marginTop: 20 },
+  btnLimparText: { color: '#ADB5BD', fontWeight: '700', textTransform: 'uppercase', fontSize: normalize(11) },
+  footerVerse: { marginTop: 40, alignItems: 'center', paddingHorizontal: 40 },
+  verseText: { fontStyle: 'italic', textAlign: 'center', color: '#ADB5BD', fontSize: normalize(13), lineHeight: 20 },
+  verseRef: { fontWeight: '800', color: '#0072B1', marginTop: 8 }
 });

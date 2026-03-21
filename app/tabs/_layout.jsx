@@ -1,6 +1,6 @@
 import { Tabs } from "expo-router";
 import { useEffect, useRef } from "react";
-import { Animated, Dimensions, PixelRatio, Pressable } from "react-native";
+import { Animated, Dimensions, PixelRatio, Platform, Pressable } from "react-native";
 
 import Entypo from "@expo/vector-icons/Entypo";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
@@ -8,18 +8,14 @@ import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
 
 const { width, height } = Dimensions.get("window");
 
-// 📌 Função de fonte responsiva
 const scaleFont = (size) => {
   const scale = width / 375;
-  const newSize = size * scale;
-  return Math.round(PixelRatio.roundToNearestPixel(newSize));
+  return Math.round(PixelRatio.roundToNearestPixel(size * scale));
 };
 
-// 🟦 Medidas responsivas
-const TAB_BUTTON_SIZE = Math.max(width * 0.12, 50);
-const ICON_SIZE = Math.min(width * 0.075, 32);
+const ICON_SIZE = Math.min(width * 0.07, 28);
 const HEADER_FONT = scaleFont(18);
-const HEADER_HEIGHT = Math.max(height * 0.10, 60);
+const HEADER_HEIGHT = Platform.OS === 'ios' ? 100 : 70;
 
 export default function Layout() {
   return (
@@ -34,36 +30,28 @@ export default function Layout() {
         headerTintColor: "#fff",
         headerTitleStyle: {
           fontSize: HEADER_FONT,
+          fontWeight: 'bold'
         },
-
-        // Configurações da TabBar
-        tabBarActiveTintColor: "#ffffff", // Cor do ícone quando ativo
-        tabBarInactiveTintColor: "#bbbbbbce", // Cor do ícone quando inativo
-        tabBarShowLabel: true,
+        tabBarShowLabel: true, // Desativamos o label padrão para usar o customizado do botão
         tabBarStyle: {
           position: "absolute",
-          height: height * 0.11,
+          height: Platform.OS === 'ios' ? 90 : 70,
           backgroundColor: "#0072B1",
+          opacity: 0.95,
           borderTopWidth: 0,
-          elevation: 20,
+          elevation: 10,
+          paddingBottom: Platform.OS === 'ios' ? 25 : 0,
         },
-
-        // 🔥 Usa nosso botão customizado com animação suave
-        tabBarButton: (props) => (
-          <CustomTabBarButton
-            {...props}
-            accessibilityLabel={props.accessibilityLabel}
-          />
-        ),
       }}
     >
       <Tabs.Screen
-        name="menu"
+        name="home"
         options={{
-          title: "Menu",
-          tabBarIcon: ({ color }) => (
-            <Entypo name="menu" size={ICON_SIZE} color={color} />
-          ),
+          title: "Início",
+          tabBarLabel: "Início",
+          tabBarActiveTintColor: "#fff",
+          tabBarButton: (props) => <CustomTabBarButton {...props} />,
+          tabBarIcon: ({ color }) => <Entypo name="home" size={ICON_SIZE} color={"#fff"} />,
         }}
       />
 
@@ -71,23 +59,10 @@ export default function Layout() {
         name="ofertas"
         options={{
           title: "Ofertas",
-          tabBarIcon: ({ color }) => (
-            <MaterialCommunityIcons
-              name="qrcode-scan"
-              size={ICON_SIZE}
-              color={color}
-            />
-          ),
-        }}
-      />
-
-      <Tabs.Screen
-        name="home"
-        options={{
-          title: "Início",
-          tabBarIcon: ({ color }) => (
-            <Entypo name="home" size={ICON_SIZE} color={color} />
-          ),
+          tabBarLabel: "Ofertas",
+          tabBarActiveTintColor: "#fff",
+          tabBarButton: (props) => <CustomTabBarButton {...props} />,
+          tabBarIcon: ({ color }) => <MaterialCommunityIcons name="qrcode-scan" size={ICON_SIZE} color={"#fff"} />,
         }}
       />
 
@@ -95,95 +70,87 @@ export default function Layout() {
         name="work"
         options={{
           title: "Tarefas",
-          tabBarIcon: ({ color }) => (
-            <FontAwesome name="table" size={ICON_SIZE} color={color} />
-          ),
+          tabBarLabel: "Tarefas",
+          tabBarActiveTintColor: "#fff",
+          tabBarButton: (props) => <CustomTabBarButton {...props} />,
+          tabBarIcon: ({ color }) => <FontAwesome name="tasks" size={ICON_SIZE} color={"#fff"} />,
         }}
       />
 
       <Tabs.Screen
         name="config"
         options={{
-          title: "Profile",
-          tabBarIcon: ({ color }) => (
-            <FontAwesome name="user-circle" size={ICON_SIZE} color={color} />
-          ),
+          title: "Perfil",
+          tabBarLabel: "Perfil",
+          tabBarActiveTintColor: "#fff",
+          tabBarButton: (props) => <CustomTabBarButton {...props} />,
+          tabBarIcon: ({ color }) => <FontAwesome name="user-circle" size={ICON_SIZE} color={"#fff"} />,
+        }}
+      />
+
+      <Tabs.Screen
+        name="menu"
+        options={{
+          title: "Menu",
+          tabBarLabel: "Mais",
+          tabBarActiveTintColor: "#fff",
+          tabBarButton: (props) => <CustomTabBarButton {...props} />,
+          tabBarIcon: ({ color }) => <Entypo name="menu" size={ICON_SIZE} color={"#fff"} />,
         }}
       />
     </Tabs>
   );
 }
 
-function CustomTabBarButton({
-  children,
-  accessibilityState,
-  onPress,
-  accessibilityLabel,
-}) {
+function CustomTabBarButton({ children, accessibilityState, onPress, accessibilityLabel }) {
   const focused = accessibilityState?.selected ?? false;
   
-  // Referências para animação
-  const scale = useRef(new Animated.Value(focused ? 1.2 : 1)).current;
+  const scale = useRef(new Animated.Value(focused ? 1.1 : 1)).current;
   const animValue = useRef(new Animated.Value(focused ? 1 : 0)).current;
 
   useEffect(() => {
     Animated.parallel([
-      // Animação de escala (Spring para ser elástico)
       Animated.spring(scale, {
-        toValue: focused ? 1.2 : 1,
-        friction: 6,
+        toValue: focused ? 1.15 : 1,
+        friction: 7,
         useNativeDriver: true,
       }),
-      // Animação de cor/fundo (Timing para ser suave)
       Animated.timing(animValue, {
         toValue: focused ? 1 : 0,
-        duration: 250,
-        useNativeDriver: false, // Necessário false para cores
+        duration: 200,
+        useNativeDriver: false,
       }),
     ]).start();
   }, [focused]);
 
-  // Interpolação de cores
+  // Interpolação para um visual mais "limpo" (Azul claro sobre azul escuro)
   const backgroundColor = animValue.interpolate({
     inputRange: [0, 1],
-    outputRange: ["transparent", "#c92626ff"],
+    outputRange: ["transparent", "rgb(255, 255, 255)"],
   });
 
   const textColor = animValue.interpolate({
     inputRange: [0, 1],
-    outputRange: ["#9c9c9c", "#fff"],
+    outputRange: ["#bbbbbb", "#ffffff"],
   });
 
   return (
-    <Pressable
-      onPress={onPress}
-      style={{
-        flex: 1,
-        alignItems: "center",
-        justifyContent: "center",
-      }}
-    >
-      <Animated.View
-        style={{
-          alignItems: "center",
-          justifyContent: "center",
-          transform: [{ scale }],
-        }}
-      >
-        {/* O children aqui contém o ícone, que já recebe a 'color' do Tabs.Screen */}
+    <Pressable onPress={onPress} style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
+      <Animated.View style={{ alignItems: "center", justifyContent: "center", transform: [{ scale }] }}>
+        
+        {/* Renderiza o ícone (children do Tabs.Screen) */}
         {children}
 
-        {/* Label custom com transição suave */}
         <Animated.Text
           style={{
             marginTop: 4,
-            paddingHorizontal: 10,
+            paddingHorizontal: 8,
             paddingVertical: 2,
-            borderRadius: 8,
+            borderRadius: 6,
             color: textColor,
             backgroundColor: backgroundColor,
-            fontSize: scaleFont(12),
-            fontWeight: "bold",
+            fontSize: scaleFont(10),
+            fontWeight: focused ? "bold" : "normal",
           }}
         >
           {accessibilityLabel}
