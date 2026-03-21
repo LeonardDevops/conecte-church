@@ -4,7 +4,7 @@
     "slug": "conecte-church",
     "version": "1.1.0",
     "orientation": "portrait",
-    "icon": "./assets/icon.png", 
+    "icon": "./assets/icon.png",
     "scheme": "conecte-church",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
@@ -66,16 +66,11 @@
       "reactCompiler": true
     },
     "extra": {
-      "router": {},
-      "eas": {
-        "projectId": "87740c97-0dc1-4462-a097-de851cc81c5b"
-      }
+      "router": {}
     },
     "runtimeVersion": {
       "policy": "appVersion"
     },
-    "updates": {
-      "url": "https://u.expo.dev/87740c97-0dc1-4462-a097-de851cc81c5b"
-    }
+    "owner": "leonardo92"
   }
 }
