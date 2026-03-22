@@ -2,25 +2,33 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import {
   addDoc, collection, onSnapshot, orderBy, query, serverTimestamp, where
 } from 'firebase/firestore';
-import { useEffect, useRef, useState } from 'react';
+// 1. Importe o useContext
+import { useContext, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator, FlatList, Keyboard, KeyboardAvoidingView,
   Platform, StyleSheet, Text, TextInput, TouchableOpacity, View
 } from 'react-native';
 import { db } from '../src/Data/FirebaseConfig';
+// 2. Importe o seu AppContext (ajuste o caminho se necessário)
+import { AppContext } from '../src/Data/contextApi';
 
-export default function Prayer({ userName = "Usuário" }) {
+export default function Prayer() { // Removido o parâmetro userName fixo
   const [text, setText] = useState('');
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(true);
-  const flatListRef = useRef();
+  const flatListRef = useRef();0
+
+  // 3. Pegue o userContext do seu Provider
+  const { userContext } = useContext(AppContext);
+  
+  // Define um nome padrão caso o usuário não esteja logado ou o nome esteja nulo
+  const currentUserName = userContext?.name || "Visitante";
 
   useEffect(() => {
-    // Lógica de 7 dias: Calcula o timestamp de uma semana atrás
     const oneWeekAgo = new Date();
     oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
 
-    // Query: Pega apenas pedidos criados nos últimos 7 dias
+    // Verifique se a regra no Firebase é 'prayer' ou 'prayers' e mantenha igual aqui
     const q = query(
       collection(db, "prayer"),
       where("createdAt", ">=", oneWeekAgo),
@@ -46,8 +54,9 @@ export default function Prayer({ userName = "Usuário" }) {
     if (!text.trim()) return;
 
     try {
-      await addDoc(collection(db, "prayers"), {
-        userName: userName,
+      await addDoc(collection(db, "prayer"), {
+        userName: currentUserName, // 4. Usa o nome vindo do contexto
+        userId: userContext?.id || null, // É bom salvar o ID também para controle
         message: text.trim(),
         createdAt: serverTimestamp(),
       });
@@ -74,8 +83,6 @@ export default function Prayer({ userName = "Usuário" }) {
 
   return (
     <View style={styles.container}>
-      
-
       {loading ? (
         <ActivityIndicator size="large" color="#0072B1" style={{ flex: 1 }} />
       ) : (
@@ -96,7 +103,7 @@ export default function Prayer({ userName = "Usuário" }) {
         <View style={styles.inputArea}>
           <TextInput
             style={styles.input}
-            placeholder="Escreva seu pedido de oração..."
+            placeholder={`Pedir oração como ${currentUserName}...`}
             value={text}
             onChangeText={setText}
             multiline
@@ -114,8 +121,9 @@ export default function Prayer({ userName = "Usuário" }) {
   );
 }
 
+// ... Estilos (os mesmos que você já possui)
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#E5DDD5' }, // Cor de fundo estilo WhatsApp
+  container: { flex: 1, backgroundColor: '#E5DDD5' },
   listContent: { padding: 15, paddingBottom: 20 },
   messageRow: { marginBottom: 10, alignItems: 'flex-start' },
   balloon: {
@@ -125,9 +133,6 @@ const styles = StyleSheet.create({
     padding: 10,
     maxWidth: '85%',
     elevation: 1,
-    shadowColor: '#000',
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
   },
   userLabel: { fontSize: 12, fontWeight: 'bold', color: '#0072B1', marginBottom: 2 },
   messageText: { fontSize: 15, color: '#333' },
