@@ -68,6 +68,10 @@ export default function Menu() {
     router.push('/Player');
   }
   
+  function goPrayer(params) {
+    router.push('/Prayer');
+  }
+  
 
 
   return (
@@ -102,7 +106,7 @@ export default function Menu() {
         </TouchableOpacity>
 
         {/* Palavra do Dia */}
-        <TouchableOpacity onPress={goHolyBiblie} style={styles.button}>
+        <TouchableOpacity onPress={goPrayer} style={styles.button}>
           <AntDesign name="comment" size={normalize(28)} color="#b33711" />
           <Text style={styles.text}>pedido de oracao</Text>
         </TouchableOpacity>
